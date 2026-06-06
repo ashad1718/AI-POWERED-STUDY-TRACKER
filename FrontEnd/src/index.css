@@ -1,0 +1,202 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg-primary: #050816;
+  --color-brand-primary: #6C63FF;
+  --color-brand-secondary: #00E5FF;
+  --color-glass: rgba(255, 255, 255, 0.05);
+  --color-glass-border: rgba(255, 255, 255, 0.08);
+  --color-glass-hover: rgba(255, 255, 255, 0.08);
+  
+  --font-sans: 'Inter', 'Outfit', system-ui, -apple-system, sans-serif;
+  
+  --animate-float-blob-1: floatBlob1 20s infinite ease-in-out;
+  --animate-float-blob-2: floatBlob2 25s infinite ease-in-out;
+  --animate-float-blob-3: floatBlob3 30s infinite ease-in-out;
+  --animate-marquee: marquee 30s linear infinite;
+
+  @keyframes floatBlob1 {
+    0%, 100% { transform: translate(0px, 0px) scale(1); }
+    33% { transform: translate(30px, -50px) scale(1.1); }
+    66% { transform: translate(-20px, 20px) scale(0.95); }
+  }
+  @keyframes floatBlob2 {
+    0%, 100% { transform: translate(0px, 0px) scale(1); }
+    50% { transform: translate(-40px, 40px) scale(1.2); }
+  }
+  @keyframes floatBlob3 {
+    0%, 100% { transform: translate(0px, 0px) scale(1); }
+    33% { transform: translate(-10px, -30px) scale(0.9); }
+    66% { transform: translate(40px, 20px) scale(1.1); }
+  }
+  @keyframes marquee {
+    0% { transform: translateX(0%); }
+    100% { transform: translateX(-50%); }
+  }
+}
+
+/* Base style resets */
+html, body {
+  margin: 0;
+  padding: 0;
+  background-color: #050816;
+  color: #ffffff;
+  font-family: 'Inter', 'Outfit', sans-serif;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+/* Remove default Vite root constraints */
+#root {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  min-height: 100vh;
+  text-align: left;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #050816;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(108, 99, 255, 0.3);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(108, 99, 255, 0.6);
+}
+
+/* Glassmorphism utility classes */
+.glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card:hover {
+  border-color: rgba(108, 99, 255, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 12px 40px 0 rgba(108, 99, 255, 0.15);
+}
+
+.glass-input {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.glass-input:focus {
+  border-color: #6C63FF;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 0 15px rgba(108, 99, 255, 0.3);
+  outline: none;
+}
+
+/* Background grid styling */
+.bg-grid-pattern {
+  background-size: 50px 50px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+}
+
+/* Custom Text masking gradients */
+.text-gradient-purple-blue {
+  background: linear-gradient(135deg, #ffffff 30%, #6C63FF 70%, #00E5FF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-cyan-purple {
+  background: linear-gradient(135deg, #00E5FF 0%, #6C63FF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ScrollTrigger horizontal timeline styles */
+.timeline-dot {
+  position: relative;
+}
+.timeline-dot::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #00E5FF;
+  box-shadow: 0 0 10px #00E5FF;
+}
+
+/* Recharts customization to fit dark glass theme */
+.recharts-default-tooltip {
+  background-color: rgba(5, 8, 22, 0.9) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 8px !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+/* Custom glowing effects */
+.glow-accent-primary {
+  box-shadow: 0 0 40px rgba(108, 99, 255, 0.2);
+}
+
+.glow-accent-secondary {
+  box-shadow: 0 0 40px rgba(0, 229, 255, 0.2);
+}
+
+/* Awwwards visual additions */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+
+/* Smooth Scroll Container Reset for Lenis */
+html.lenis, html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overflow: clip;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+.lenis.lenis-scrolling iframe {
+  pointer-events: none;
+}
+
+/* Text split animations reveal clip wrapper */
+.char-mask {
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: bottom;
+}
+
+/* Mouse-following spotlight glow */
+.spotlight-glow {
+  background: radial-gradient(circle 450px at center, rgba(108, 99, 255, 0.12) 0%, rgba(0, 229, 255, 0.08) 50%, transparent 100%);
+  filter: blur(40px);
+}
+
