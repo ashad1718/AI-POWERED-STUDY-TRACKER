@@ -72,7 +72,10 @@ const ProfilePage = ({ user = {} }) => {
       const nextOrder = subjects.length > 0 ? Math.max(...subjects.map(s => s.order || 0)) + 1 : 0;
       await subjectAPI.create({
         name: newSubName,
-        completionThreshold: newSubThreshold,
+        completionThreshold: {
+          sessions: 3,
+          hours: newSubThreshold
+        },
         order: nextOrder,
         active: true
       });
@@ -109,7 +112,7 @@ const ProfilePage = ({ user = {} }) => {
   const startEditing = (sub) => {
     setEditingSubId(sub._id);
     setEditingName(sub.name);
-    setEditingThreshold(sub.completionThreshold || 15);
+    setEditingThreshold(sub.completionThreshold?.hours || (typeof sub.completionThreshold === 'number' ? sub.completionThreshold : 15));
   };
 
   const handleUpdateSubject = async (id) => {
@@ -118,10 +121,13 @@ const ProfilePage = ({ user = {} }) => {
     try {
       await subjectAPI.update(id, {
         name: editingName,
-        completionThreshold: editingThreshold
+        completionThreshold: {
+          sessions: 3,
+          hours: editingThreshold
+        }
       });
       setSubjects(prev =>
-        prev.map(s => s._id === id ? { ...s, name: editingName, completionThreshold: editingThreshold } : s)
+        prev.map(s => s._id === id ? { ...s, name: editingName, completionThreshold: { sessions: 3, hours: editingThreshold } } : s)
       );
       setEditingSubId(null);
     } catch (err) {
@@ -137,7 +143,7 @@ const ProfilePage = ({ user = {} }) => {
     if (subActionLoading) return;
     setSubActionLoading(true);
     try {
-      await subjectAPI.delete(id);
+      await subjectAPI.remove(id);
       setSubjects(prev => prev.filter(s => s._id !== id));
     } catch (err) {
       console.error('Failed to delete subject', err);
@@ -431,7 +437,7 @@ const ProfilePage = ({ user = {} }) => {
                                   {sub.active ? 'Active' : 'Inactive'}
                                 </span>
                                 <span className="text-[10px] text-gray-500">
-                                  Threshold: {sub.completionThreshold || 15} hrs
+                                  Threshold: {sub.completionThreshold?.hours || (typeof sub.completionThreshold === 'number' ? sub.completionThreshold : 15)} hrs
                                 </span>
                               </div>
                             </div>
