@@ -16,6 +16,21 @@ const sessionSchema = new mongoose.Schema(
       trim: true,
       maxlength: [100, 'Subject cannot exceed 100 characters'],
     },
+    subjectId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Subject',
+      index: true,
+    },
+    chapterId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Chapter',
+      index: true,
+    },
+    chapter: {
+      type: String,
+      trim: true,
+      maxlength: [150, 'Chapter name cannot exceed 150 characters'],
+    },
     duration: {
       type: Number,
       required: [true, 'Duration is required'],

@@ -1,20 +1,19 @@
 'use strict';
 
 const Session                    = require('../models/Session');
+const Subject                    = require('../models/Subject');
+const Chapter                    = require('../models/Chapter');
 const asyncHandler               = require('../utils/asyncHandler');
 const AppError                   = require('../utils/AppError');
-const { analyseWithGemini }      = require('../services/gemini.service');
+const { analyseWithGemini, chatWithGemini } = require('../services/gemini.service');
 
 // ── Rate limiting store (in-memory, per user) ─────────────────────────────────
-// Prevents users from hammering the Gemini API.
-// Simple approach: 1 request per 60 seconds per user.
 const lastRequestTime = new Map();
 const RATE_LIMIT_MS   = 60 * 1000; // 60 seconds
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/ai/analyze
-// Protected — requires valid JWT (protect middleware applied in route).
-// Fetches user sessions, runs Gemini analysis, returns structured insights.
+// Protected — requires valid JWT.
 // ─────────────────────────────────────────────────────────────────────────────
 exports.analyzeStudy = asyncHandler(async (req, res) => {
   const userId   = req.user.id;
@@ -32,18 +31,30 @@ exports.analyzeStudy = asyncHandler(async (req, res) => {
   }
   lastRequestTime.set(userId, Date.now());
 
-  // ── Fetch all user sessions from MongoDB ──────────────────────────────────
+  // ── Fetch user sessions, subjects, and chapters ───────────────────────────
   const sessions = await Session.find({ userId })
-    .select('subject duration date')
     .sort({ date: -1 })
-    .lean();  // lean() returns plain JS objects — faster for read-only analysis
+    .lean();
+
+  const activeSubjects = await Subject.find({
+    userId,
+    active: true,
+    isArchived: false,
+    isDeleted: false,
+  }).sort({ order: 1 }).lean();
+
+  const activeSubjectIds = activeSubjects.map(s => s._id);
+  const chapters = await Chapter.find({
+    userId,
+    subjectId: { $in: activeSubjectIds },
+    isDeleted: false,
+  }).sort({ order: 1 }).lean();
 
   // ── Run Gemini analysis ───────────────────────────────────────────────────
   let result;
   try {
-    result = await analyseWithGemini(sessions, userName);
+    result = await analyseWithGemini(sessions, userName, activeSubjects, chapters);
   } catch (err) {
-    // Map known Gemini errors to appropriate HTTP codes
     if (err.message.includes('not configured')) {
       throw new AppError(err.message, 503, 'AI_NOT_CONFIGURED');
     }
@@ -53,7 +64,6 @@ exports.analyzeStudy = asyncHandler(async (req, res) => {
     if (err.message.includes('Invalid Gemini')) {
       throw new AppError(err.message, 503, 'AI_INVALID_KEY');
     }
-    // Generic AI error
     throw new AppError(`AI analysis failed: ${err.message}`, 500, 'AI_ERROR');
   }
 
@@ -79,5 +89,61 @@ exports.analyzeStudy = asyncHandler(async (req, res) => {
       insights:   result.insights,
       analysedAt: new Date().toISOString(),
     },
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/ai/chat
+// Protected — requires valid JWT.
+// ─────────────────────────────────────────────────────────────────────────────
+exports.chatStudy = asyncHandler(async (req, res) => {
+  const userId   = req.user.id;
+  const userName = req.user.name;
+  const { message } = req.body;
+
+  if (!message || !message.trim()) {
+    throw new AppError('Message is required.', 400);
+  }
+
+  // ── Fetch user sessions, subjects, and chapters ───────────────────────────
+  const sessions = await Session.find({ userId })
+    .sort({ date: -1 })
+    .lean();
+
+  const activeSubjects = await Subject.find({
+    userId,
+    active: true,
+    isArchived: false,
+    isDeleted: false,
+  }).sort({ order: 1 }).lean();
+
+  const activeSubjectIds = activeSubjects.map(s => s._id);
+  const chapters = await Chapter.find({
+    userId,
+    subjectId: { $in: activeSubjectIds },
+    isDeleted: false,
+  }).sort({ order: 1 }).lean();
+
+  // ── Run Gemini chat ───────────────────────────────────────────────────────
+  let result;
+  try {
+    result = await chatWithGemini(sessions, userName, message.trim(), activeSubjects, chapters);
+  } catch (err) {
+    if (err.message.includes('not configured')) {
+      throw new AppError(err.message, 503, 'AI_NOT_CONFIGURED');
+    }
+    if (err.message.includes('quota')) {
+      throw new AppError(err.message, 503, 'AI_QUOTA_EXCEEDED');
+    }
+    if (err.message.includes('Invalid Gemini')) {
+      throw new AppError(err.message, 503, 'AI_INVALID_KEY');
+    }
+    throw new AppError(`AI chat failed: ${err.message}`, 500, 'AI_ERROR');
+  }
+
+  // ── Success response ──────────────────────────────────────────────────────
+  res.status(200).json({
+    success: true,
+    data: result,
   });
 });

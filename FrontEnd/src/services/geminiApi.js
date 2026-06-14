@@ -19,4 +19,5 @@ geminiApi.interceptors.request.use((config) => {
 
 export const geminiAPI = {
   analyze: () => geminiApi.post('/ai/analyze'),
+  chat: (message) => geminiApi.post('/ai/chat', { message }),
 };

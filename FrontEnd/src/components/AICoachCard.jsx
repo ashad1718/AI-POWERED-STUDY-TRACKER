@@ -2,7 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Sparkles, Brain, TrendingUp, AlertTriangle,
-  Target, Star, Zap, RefreshCw, BookOpen
+  Target, Star, Zap, RefreshCw, BookOpen, Clock, ListOrdered, GraduationCap
 } from 'lucide-react';
 import AIScoreRing from './AIScoreRing';
 
@@ -37,9 +37,9 @@ const InsightSection = ({ icon: Icon, title, items, color, delay = 0 }) => (
 const LoadingSkeleton = () => (
   <div className="space-y-6 animate-pulse">
     <div className="text-center space-y-2">
-      <div className="text-sm text-[#00E5FF] font-medium">Analyzing your study habits...</div>
+      <div className="text-sm text-[#5EEAD4] font-medium">Analyzing your study and syllabus habits...</div>
       <div className="flex justify-center">
-        <div className="w-6 h-6 border-2 border-[#00E5FF] border-t-transparent rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-[#5EEAD4] border-t-transparent rounded-full animate-spin" />
       </div>
     </div>
 
@@ -47,7 +47,7 @@ const LoadingSkeleton = () => (
     <div className="flex justify-around">
       {[0, 1, 2].map((i) => (
         <div key={i} className="flex flex-col items-center space-y-2">
-          <div className="w-24 h-24 rounded-full bg-white/5" />
+          <div className="w-20 h-20 rounded-full bg-white/5" />
           <div className="w-16 h-2.5 bg-white/5 rounded" />
         </div>
       ))}
@@ -68,19 +68,19 @@ const LoadingSkeleton = () => (
 
 const EmptyState = ({ onAnalyze, loading }) => (
   <div className="flex flex-col items-center justify-center text-center py-8 space-y-4">
-    <div className="p-4 rounded-2xl bg-[#6C63FF]/10 border border-[#6C63FF]/20">
-      <BookOpen className="w-8 h-8 text-[#6C63FF]" />
+    <div className="p-4 rounded-2xl bg-[#6EA8FE]/10 border border-[#6EA8FE]/20">
+      <BookOpen className="w-8 h-8 text-[#6EA8FE]" />
     </div>
     <div>
-      <p className="text-sm font-semibold text-white mb-1">No study data yet</p>
+      <p className="text-sm font-semibold text-white mb-1">No curriculum or study data</p>
       <p className="text-xs text-gray-400 max-w-[220px] leading-relaxed">
-        Start logging study sessions to receive AI-powered recommendations.
+        Start logging study sessions and configuring subjects to receive AI-powered recommendations.
       </p>
     </div>
     <button
       onClick={onAnalyze}
       disabled={loading}
-      className="px-4 py-2 text-xs font-semibold text-[#00E5FF] border border-[#00E5FF]/30 rounded-xl hover:bg-[#00E5FF]/10 transition-all cursor-pointer disabled:opacity-50"
+      className="px-4 py-2 text-xs font-semibold text-[#5EEAD4] border border-[#5EEAD4]/30 rounded-xl hover:bg-[#5EEAD4]/10 transition-all cursor-pointer disabled:opacity-50"
     >
       Check Again
     </button>
@@ -110,17 +110,6 @@ const ErrorState = ({ message, onRetry }) => (
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 
-/**
- * AICoachCard
- * Full AI Study Coach panel — handles all states: idle, loading, error, results.
- *
- * Props:
- *   data        {Object|null}   result from useGeminiAnalysis
- *   loading     {boolean}
- *   error       {string|null}
- *   hasAnalysed {boolean}
- *   onAnalyze   {Function}      trigger analysis
- */
 const AICoachCard = ({ data, loading, error, hasAnalysed, onAnalyze }) => {
   const isEmpty = data?.isEmpty;
 
@@ -130,14 +119,14 @@ const AICoachCard = ({ data, loading, error, hasAnalysed, onAnalyze }) => {
       <div
         className="absolute inset-0 rounded-2xl pointer-events-none z-0"
         style={{
-          background: 'linear-gradient(135deg, #6C63FF40, #00E5FF20, #6C63FF40)',
+          background: 'linear-gradient(135deg, #6EA8FE40, #5EEAD420, #6EA8FE40)',
           padding: '1px',
         }}
       />
 
       {/* Glow blobs behind card */}
-      <div className="absolute -top-8 -left-8 w-40 h-40 bg-[#6C63FF]/10 blur-3xl rounded-full pointer-events-none" />
-      <div className="absolute -bottom-8 -right-8 w-40 h-40 bg-[#00E5FF]/10 blur-3xl rounded-full pointer-events-none" />
+      <div className="absolute -top-8 -left-8 w-40 h-40 bg-[#6EA8FE]/10 blur-3xl rounded-full pointer-events-none" />
+      <div className="absolute -bottom-8 -right-8 w-40 h-40 bg-[#5EEAD4]/10 blur-3xl rounded-full pointer-events-none" />
 
       {/* Card body */}
       <div
@@ -145,23 +134,22 @@ const AICoachCard = ({ data, loading, error, hasAnalysed, onAnalyze }) => {
         style={{
           background:   'rgba(255,255,255,0.03)',
           backdropFilter: 'blur(16px)',
-          border:       '1px solid rgba(108,99,255,0.25)',
-          boxShadow:    '0 8px 40px rgba(108,99,255,0.12), inset 0 1px 0 rgba(255,255,255,0.05)',
+          border:       '1px solid rgba(94,234,212,0.15)',
+          boxShadow:    '0 8px 40px rgba(94,234,212,0.08), inset 0 1px 0 rgba(255,255,255,0.05)',
         }}
       >
         {/* ── Header ── */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-3">
-            {/* Floating AI icon with pulse ring */}
             <div className="relative">
-              <div className="absolute inset-0 rounded-xl bg-gradient-to-tr from-[#6C63FF] to-[#00E5FF] blur-md opacity-50 animate-pulse" />
-              <div className="relative p-2.5 rounded-xl bg-gradient-to-tr from-[#6C63FF] to-[#00E5FF] shadow-lg">
-                <Brain className="w-5 h-5 text-white" />
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-tr from-[#6EA8FE] to-[#5EEAD4] blur-md opacity-50 animate-pulse" />
+              <div className="relative p-2.5 rounded-xl bg-gradient-to-tr from-[#6EA8FE] to-[#5EEAD4] shadow-lg">
+                <Brain className="w-5 h-5 text-[#070B14]" />
               </div>
             </div>
             <div>
               <h3 className="text-base font-bold text-white tracking-tight">AI Study Coach</h3>
-              <p className="text-[10px] text-gray-500 font-mono">Powered by Google Gemini</p>
+              <p className="text-[10px] text-gray-500 font-mono">Syllabus-Aware Analytics</p>
             </div>
           </div>
 
@@ -172,18 +160,18 @@ const AICoachCard = ({ data, loading, error, hasAnalysed, onAnalyze }) => {
               whileTap={{ scale: 0.97 }}
               onClick={onAnalyze}
               disabled={loading}
-              className="flex items-center space-x-2 px-4 py-2 text-xs font-bold rounded-xl cursor-pointer transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center space-x-2 px-4 py-2 text-xs font-black rounded-xl cursor-pointer transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 background:  hasAnalysed && !isEmpty
                   ? 'rgba(255,255,255,0.05)'
-                  : 'linear-gradient(135deg, #6C63FF, #00E5FF)',
+                  : 'linear-gradient(135deg, #6EA8FE, #5EEAD4)',
                 border:      hasAnalysed && !isEmpty
                   ? '1px solid rgba(255,255,255,0.1)'
                   : 'none',
-                color:       hasAnalysed && !isEmpty ? '#9ca3af' : '#fff',
+                color:       hasAnalysed && !isEmpty ? '#9ca3af' : '#070B14',
                 boxShadow:   hasAnalysed && !isEmpty
                   ? 'none'
-                  : '0 4px 15px rgba(108,99,255,0.3)',
+                  : '0 4px 15px rgba(94,234,212,0.3)',
               }}
             >
               {hasAnalysed && !isEmpty ? (
@@ -250,17 +238,17 @@ const AICoachCard = ({ data, loading, error, hasAnalysed, onAnalyze }) => {
               className="flex flex-col items-center justify-center text-center py-8 space-y-4"
             >
               <div className="relative">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-[#6C63FF]/20 to-[#00E5FF]/20 flex items-center justify-center border border-white/10">
-                  <Sparkles className="w-7 h-7 text-[#00E5FF]" />
+                <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-[#6EA8FE]/20 to-[#5EEAD4]/20 flex items-center justify-center border border-white/10">
+                  <Sparkles className="w-7 h-7 text-[#5EEAD4]" />
                 </div>
-                <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#6C63FF] flex items-center justify-center">
+                <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#6EA8FE] flex items-center justify-center">
                   <Zap className="w-2.5 h-2.5 text-white" />
                 </div>
               </div>
               <div>
                 <p className="text-sm font-semibold text-white mb-1">Ready to coach you</p>
                 <p className="text-xs text-gray-400 max-w-[200px] leading-relaxed">
-                  Click "Analyze My Progress" for personalised AI insights powered by Gemini.
+                  Click "Analyze My Progress" to fetch semester completion forecasts and subject goals.
                 </p>
               </div>
             </motion.div>
@@ -280,13 +268,13 @@ const AICoachCard = ({ data, loading, error, hasAnalysed, onAnalyze }) => {
                 <AIScoreRing
                   score={data.stats?.studyScore ?? 0}
                   label="Study Score"
-                  color="#6C63FF"
+                  color="#6EA8FE"
                   delay={0}
                 />
                 <AIScoreRing
                   score={data.stats?.consistencyScore ?? 0}
                   label="Consistency"
-                  color="#00E5FF"
+                  color="#5EEAD4"
                   delay={0.15}
                 />
                 <AIScoreRing
@@ -300,6 +288,26 @@ const AICoachCard = ({ data, loading, error, hasAnalysed, onAnalyze }) => {
               {/* Divider */}
               <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
+              {/* Semester Completion Prediction Box */}
+              {data.insights?.semesterCompletionPrediction && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="p-4 rounded-xl border border-[#5EEAD4]/20 bg-[#5EEAD4]/5"
+                >
+                  <div className="flex items-center space-x-2 mb-2">
+                    <GraduationCap className="w-4 h-4 text-[#5EEAD4]" />
+                    <span className="text-[10px] font-bold text-[#5EEAD4] uppercase tracking-wider">
+                      Curriculum Completion Forecast
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-200 leading-relaxed font-semibold">
+                    {data.insights.semesterCompletionPrediction}
+                  </p>
+                </motion.div>
+              )}
+
               {/* Insight sections */}
               <div className="grid grid-cols-1 gap-5">
                 <InsightSection
@@ -307,22 +315,47 @@ const AICoachCard = ({ data, loading, error, hasAnalysed, onAnalyze }) => {
                   title="Strengths"
                   items={data.insights?.strengths ?? []}
                   color="bg-green-500/20 text-green-400"
-                  delay={0.1}
+                  delay={0.2}
                 />
                 <InsightSection
                   icon={AlertTriangle}
                   title="Areas to Improve"
                   items={data.insights?.weaknesses ?? []}
                   color="bg-amber-500/20 text-amber-400"
-                  delay={0.2}
+                  delay={0.3}
                 />
                 <InsightSection
                   icon={Target}
                   title="Recommendations"
                   items={data.insights?.recommendations ?? []}
-                  color="bg-[#6C63FF]/20 text-[#6C63FF]"
-                  delay={0.3}
+                  color="bg-[#6EA8FE]/20 text-[#6EA8FE]"
+                  delay={0.4}
                 />
+              </div>
+
+              {/* Divider */}
+              <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+              {/* Subject Priorities and Chapter Recommendations */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {data.insights?.subjectPriorities && (
+                  <InsightSection
+                    icon={ListOrdered}
+                    title="Subject Priorities"
+                    items={data.insights.subjectPriorities}
+                    color="bg-purple-500/20 text-purple-400"
+                    delay={0.5}
+                  />
+                )}
+                {data.insights?.chapterRecommendations && (
+                  <InsightSection
+                    icon={BookOpen}
+                    title="Focus Next On"
+                    items={data.insights.chapterRecommendations}
+                    color="bg-teal-500/20 text-[#5EEAD4]"
+                    delay={0.5}
+                  />
+                )}
               </div>
 
               {/* Divider */}
@@ -333,16 +366,16 @@ const AICoachCard = ({ data, loading, error, hasAnalysed, onAnalyze }) => {
                 <motion.div
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
-                  className="p-4 rounded-xl border border-[#00E5FF]/20 bg-[#00E5FF]/5"
+                  transition={{ delay: 0.6 }}
+                  className="p-4 rounded-xl border border-[#5EEAD4]/20 bg-[#5EEAD4]/5"
                 >
                   <div className="flex items-center space-x-2 mb-2">
-                    <Target className="w-3.5 h-3.5 text-[#00E5FF]" />
-                    <span className="text-[10px] font-bold text-[#00E5FF] uppercase tracking-wider">
+                    <Target className="w-3.5 h-3.5 text-[#5EEAD4]" />
+                    <span className="text-[10px] font-bold text-[#5EEAD4] uppercase tracking-wider">
                       Weekly Goal
                     </span>
                   </div>
-                  <p className="text-xs text-gray-200 leading-relaxed">
+                  <p className="text-xs text-gray-200 leading-relaxed font-semibold">
                     {data.insights.weeklyGoal}
                   </p>
                 </motion.div>
@@ -353,12 +386,12 @@ const AICoachCard = ({ data, loading, error, hasAnalysed, onAnalyze }) => {
                 <motion.div
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
-                  className="p-4 rounded-xl border border-[#6C63FF]/20 bg-gradient-to-br from-[#6C63FF]/10 to-[#00E5FF]/5"
+                  transition={{ delay: 0.7 }}
+                  className="p-4 rounded-xl border border-[#6EA8FE]/20 bg-gradient-to-br from-[#6EA8FE]/10 to-[#5EEAD4]/5"
                 >
                   <div className="flex items-center space-x-2 mb-2">
-                    <Zap className="w-3.5 h-3.5 text-[#6C63FF]" />
-                    <span className="text-[10px] font-bold text-[#6C63FF] uppercase tracking-wider">
+                    <Zap className="w-3.5 h-3.5 text-[#6EA8FE]" />
+                    <span className="text-[10px] font-bold text-[#6EA8FE] uppercase tracking-wider">
                       Motivation
                     </span>
                   </div>

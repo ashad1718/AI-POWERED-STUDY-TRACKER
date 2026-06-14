@@ -18,6 +18,9 @@ const statsRoutes       = require('./routes/stats.routes');
 const aiRoutes          = require('./routes/ai.routes');
 const achievementRoutes = require('./routes/achievement.routes');
 const geminiRoutes      = require('./routes/gemini.routes');   // ← NEW
+const subjectRoutes     = require('./routes/subject.routes');
+const chapterRoutes     = require('./routes/chapter.routes');
+const semesterRoutes    = require('./routes/semester.routes');
 
 const app = express();
 
@@ -96,6 +99,9 @@ app.use('/api/v1/sessions',                    sessionRoutes);
 app.use('/api/v1/stats',                       statsRoutes);
 app.use('/api/v1/ai',                          aiRoutes);
 app.use('/api/v1/achievements',                achievementRoutes);
+app.use('/api/v1/subjects',                    subjectRoutes);
+app.use('/api/v1/chapters',                    chapterRoutes);
+app.use('/api/v1/semester-progress',          semesterRoutes);
 app.use('/api/ai',              geminiLimiter, geminiRoutes);  // ← NEW — note: /api/ai not /api/v1/ai
 
 app.all('*', (req, res, next) => {

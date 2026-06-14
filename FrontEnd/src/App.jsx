@@ -19,6 +19,9 @@ import Dashboard        from './pages/Dashboard';
 import StudySessionPage from './pages/StudySessionPage';
 import ProfilePage      from './pages/ProfilePage';
 import AICoachPage      from './pages/AICoachPage';
+import SubjectManagerPage from './pages/SubjectManagerPage';
+import ChapterManagerPage from './pages/ChapterManagerPage';
+import SemesterSetupPage  from './pages/SemesterSetupPage';
 
 import { useAuth }      from './hooks/useAuth';
 
@@ -66,7 +69,10 @@ const AppContent = () => {
     }
   }, [location]);
 
-  const isDashboardRoute = ['/dashboard', '/study-session', '/profile', '/ai-coach'].includes(location.pathname);
+  const isDashboardRoute = [
+    '/dashboard', '/study-session', '/profile', '/ai-coach',
+    '/subjects', '/chapters', '/semester-setup'
+  ].includes(location.pathname);
 
   const PrivateRoute = ({ children }) =>
     isLoggedIn ? children : <Navigate to="/login" replace />;
@@ -94,6 +100,9 @@ const AppContent = () => {
               <Route path="/study-session"element={<PrivateRoute><StudySessionPage /></PrivateRoute>} />
               <Route path="/ai-coach"     element={<PrivateRoute><AICoachPage      user={user} /></PrivateRoute>} />
               <Route path="/profile"      element={<PrivateRoute><ProfilePage      user={user} /></PrivateRoute>} />
+              <Route path="/subjects"     element={<PrivateRoute><SubjectManagerPage /></PrivateRoute>} />
+              <Route path="/chapters"     element={<PrivateRoute><ChapterManagerPage /></PrivateRoute>} />
+              <Route path="/semester-setup"element={<PrivateRoute><SemesterSetupPage /></PrivateRoute>} />
               
               {/* Fallback */}
               <Route path="*" element={<Navigate to={isLoggedIn ? "/dashboard" : "/"} replace />} />

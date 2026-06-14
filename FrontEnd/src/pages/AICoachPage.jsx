@@ -122,25 +122,25 @@ const AICoachPage = ({ user }) => {
   };
 
   const suggestions = [
-    { label: '🎯 Which subject should I focus on?', query: 'Based on my logs, which subject should I focus on next and why?' },
-    { label: '📈 Analyze my study consistency', query: 'Analyze my study consistency and tell me how I can improve my daily habit.' },
-    { label: '🔥 Tips to prevent study burnout', query: 'Give me three practical tips to avoid study burnout based on my session history.' },
-    { label: '📅 revision schedule help', query: 'Help me draft a simple weekly revision schedule for my active subjects.' }
+    { label: '🎯 Which subject should I focus on?', query: 'Based on my syllabus progress, which subject should I prioritize next and why?' },
+    { label: '📈 Forecast curriculum completion', query: 'Forecast my semester curriculum completion date based on my current study rate.' },
+    { label: '🔥 Tips to prevent study burnout', query: 'Give me practical tips to avoid study burnout based on my session history.' },
+    { label: '📅 Active syllabus recommendations', query: 'Help me prioritize my remaining chapters for active subjects.' }
   ];
 
   return (
-    <div ref={containerRef} className="space-y-6 pb-12 text-white min-h-screen bg-[#11072F]">
+    <div ref={containerRef} className="space-y-6 pb-12 text-white min-h-screen">
       
       {/* Page Header */}
       <div className="ai-coach-stagger flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-white/5 pb-6">
         <div>
           <h1 className="text-3xl font-extrabold text-white tracking-tight flex items-center gap-3 font-sans">
-            <span className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-[#7B4DFF] to-[#00D4C7] shadow-lg">
-              <Brain className="w-4 h-4 text-[#11072F]" />
+            <span className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-[#6EA8FE] to-[#5EEAD4] shadow-lg">
+              <Brain className="w-4 h-4 text-[#070B14]" />
             </span>
-            AI Coach <span className="text-[#00D4C7] font-mono">Advisor</span>
+            AI Coach <span className="text-[#5EEAD4] font-mono">Advisor</span>
           </h1>
-          <p className="text-sm text-white/60 mt-1.5 font-light font-sans">
+          <p className="text-sm text-gray-400 mt-1.5 font-light font-sans">
             Get intelligent insights, syllabus focus recommendations, and chat directly with your cognitive coach.
           </p>
         </div>
@@ -151,7 +151,7 @@ const AICoachPage = ({ user }) => {
         {/* Left Side: Summary & Insights (takes 5 cols) */}
         <div className="lg:col-span-5 space-y-6 ai-coach-stagger">
           <div className="relative">
-            <div className="absolute inset-0 bg-[#7B4DFF]/5 blur-3xl pointer-events-none rounded-2xl" />
+            <div className="absolute inset-0 bg-[#6EA8FE]/5 blur-3xl pointer-events-none rounded-2xl" />
             <AICoachCard
               data={aiData}
               loading={aiLoading}
@@ -166,17 +166,17 @@ const AICoachPage = ({ user }) => {
 
         {/* Right Side: Interactive Chat (takes 7 cols) */}
         <div className="lg:col-span-7 flex flex-col h-[680px] relative ai-coach-stagger">
-          <div className="absolute inset-0 bg-[#00D4C7]/5 blur-3xl pointer-events-none rounded-2xl" />
+          <div className="absolute inset-0 bg-[#5EEAD4]/5 blur-3xl pointer-events-none rounded-2xl" />
           
-          <GlassCard className="flex flex-col h-full border-white/10 bg-white/5 relative z-10 p-0 overflow-hidden" hoverEffect={false}>
+          <GlassCard className="flex flex-col h-full border-white/10 bg-[#0F172A]/40 relative z-10 p-0 overflow-hidden" hoverEffect={false}>
             
             {/* Chat Header */}
-            <div className="px-6 py-4 border-b border-white/10 flex justify-between items-center bg-[#11072F]/50">
+            <div className="px-6 py-4 border-b border-white/10 flex justify-between items-center bg-[#070B14]/55">
               <div className="flex items-center space-x-3">
-                <div className="w-2.5 h-2.5 rounded-full bg-[#00D4C7] animate-pulse" />
+                <div className="w-2.5 h-2.5 rounded-full bg-[#5EEAD4] animate-pulse" />
                 <div>
                   <h3 className="text-sm font-bold text-white">Interactive Advisor</h3>
-                  <p className="text-[10px] text-white/50 font-mono">Cognitive Chat Session</p>
+                  <p className="text-[10px] text-gray-500 font-mono">Cognitive Chat Session</p>
                 </div>
               </div>
               
@@ -184,7 +184,7 @@ const AICoachPage = ({ user }) => {
                 <button
                   onClick={clearChat}
                   title="Clear chat history"
-                  className="p-1.5 rounded-lg border border-white/10 text-white/60 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                  className="p-1.5 rounded-lg border border-white/10 text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -208,8 +208,8 @@ const AICoachPage = ({ user }) => {
                       {/* Avatar */}
                       <div className={`w-8.5 h-8.5 rounded-lg flex items-center justify-center shrink-0 ${
                         msg.sender === 'user'
-                          ? 'bg-gradient-to-tr from-[#7B4DFF] to-[#5B2EFF] text-white font-bold text-xs shadow-md border border-white/10'
-                          : 'bg-gradient-to-tr from-[#00D4C7]/20 to-[#7B4DFF]/20 text-[#00D4C7] border border-[#00D4C7]/30'
+                          ? 'bg-gradient-to-tr from-[#6EA8FE] to-[#5EEAD4] text-[#070B14] font-bold text-xs shadow-md border border-white/10'
+                          : 'bg-gradient-to-tr from-[#5EEAD4]/20 to-[#6EA8FE]/20 text-[#5EEAD4] border border-[#5EEAD4]/30'
                       }`}>
                         {msg.sender === 'user' ? (
                           <User className="w-4 h-4" />
@@ -221,12 +221,12 @@ const AICoachPage = ({ user }) => {
                       {/* Bubble content */}
                       <div className={`p-4 rounded-2xl text-xs leading-relaxed ${
                         msg.sender === 'user'
-                          ? 'bg-gradient-to-br from-[#7B4DFF] to-[#5B2EFF] text-white rounded-tr-none shadow-[0_4px_15px_rgba(91,46,255,0.25)] border border-white/10'
+                          ? 'bg-gradient-to-br from-[#162033] to-[#0F172A] text-white rounded-tr-none shadow-[0_4px_15px_rgba(94,234,212,0.1)] border border-[#5EEAD4]/20'
                           : 'bg-white/5 border border-white/5 text-white/90 rounded-tl-none shadow-sm'
                       }`}>
                         <p className="whitespace-pre-line font-light">{msg.text}</p>
                         <span className={`block text-[9px] mt-2.5 text-right font-mono ${
-                          msg.sender === 'user' ? 'text-white/60' : 'text-white/30'
+                          msg.sender === 'user' ? 'text-white/40' : 'text-white/30'
                         }`}>
                           {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
@@ -243,13 +243,13 @@ const AICoachPage = ({ user }) => {
                     className="flex justify-start"
                   >
                     <div className="flex items-start gap-3.5">
-                      <div className="w-8.5 h-8.5 rounded-lg flex items-center justify-center bg-gradient-to-tr from-[#00D4C7]/20 to-[#7B4DFF]/20 text-[#00D4C7] border border-[#00D4C7]/30 shrink-0">
+                      <div className="w-8.5 h-8.5 rounded-lg flex items-center justify-center bg-gradient-to-tr from-[#5EEAD4]/20 to-[#6EA8FE]/20 text-[#5EEAD4] border border-[#5EEAD4]/30 shrink-0">
                         <Bot className="w-4 h-4 animate-bounce" />
                       </div>
                       <div className="p-4 rounded-2xl bg-white/5 border border-white/5 rounded-tl-none flex items-center space-x-2">
-                        <span className="w-1.5 h-1.5 bg-[#00D4C7] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <span className="w-1.5 h-1.5 bg-[#00D4C7] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <span className="w-1.5 h-1.5 bg-[#00D4C7] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                        <span className="w-1.5 h-1.5 bg-[#5EEAD4] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="w-1.5 h-1.5 bg-[#5EEAD4] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="w-1.5 h-1.5 bg-[#5EEAD4] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                       </div>
                     </div>
                   </motion.div>
@@ -267,18 +267,18 @@ const AICoachPage = ({ user }) => {
             </div>
 
             {/* Quick Suggestions list */}
-            <div className="px-6 py-4 border-t border-white/10 bg-[#11072F]/30">
-              <span className="text-[10px] text-white/40 font-mono uppercase tracking-wider block mb-2.5">Quick suggestions:</span>
+            <div className="px-6 py-4 border-t border-white/10 bg-[#070B14]/30">
+              <span className="text-[10px] text-gray-500 font-mono uppercase tracking-wider block mb-2.5">Quick suggestions:</span>
               <div className="flex flex-wrap gap-2">
                 {suggestions.map((sug, idx) => (
                   <button
                     key={idx}
                     onClick={() => handleSendMessage(sug.query)}
                     disabled={chatLoading}
-                    className="px-3.5 py-2 rounded-xl border border-white/5 hover:border-[#00D4C7] bg-white/5 hover:bg-[#00D4C7]/5 text-[11px] text-white/80 hover:text-white transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                    className="px-3.5 py-2 rounded-xl border border-white/5 hover:border-[#5EEAD4] bg-[#162033]/40 hover:bg-[#5EEAD4]/5 text-[11px] text-gray-300 hover:text-white transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
                   >
                     <span>{sug.label}</span>
-                    <ArrowRight className="w-3 h-3 text-white/40" />
+                    <ArrowRight className="w-3 h-3 text-gray-500" />
                   </button>
                 ))}
               </div>
@@ -287,20 +287,20 @@ const AICoachPage = ({ user }) => {
             {/* Chat Input Field */}
             <form
               onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }}
-              className="p-4 border-t border-white/10 bg-[#11072F]/50 flex gap-3"
+              className="p-4 border-t border-white/10 bg-[#070B14]/50 flex gap-3"
             >
               <input
                 type="text"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                placeholder="Ask AI Coach about your studies, schedules, or improvements..."
+                placeholder="Ask AI Coach about your studies, syllabus forecast, or priority goals..."
                 disabled={chatLoading}
-                className="flex-1 bg-white/5 border border-white/5 focus:border-[#00D4C7] focus:outline-none rounded-xl px-4 py-3.5 text-xs text-white placeholder-white/30 transition-colors disabled:opacity-50"
+                className="flex-1 bg-white/5 border border-white/5 focus:border-[#5EEAD4] focus:outline-none rounded-xl px-4 py-3.5 text-xs text-white placeholder-white/30 transition-colors disabled:opacity-50"
               />
               <button
                 type="submit"
                 disabled={!inputText.trim() || chatLoading}
-                className="p-3.5 bg-gradient-to-tr from-[#5B2EFF] to-[#7B4DFF] hover:opacity-90 disabled:opacity-50 rounded-xl flex items-center justify-center shadow-lg cursor-pointer transition-all duration-300 shrink-0 text-white"
+                className="p-3.5 bg-gradient-to-tr from-[#6EA8FE] to-[#5EEAD4] hover:opacity-90 disabled:opacity-50 rounded-xl flex items-center justify-center shadow-lg cursor-pointer transition-all duration-300 shrink-0 text-[#070B14]"
               >
                 <Send className="w-4.5 h-4.5" />
               </button>

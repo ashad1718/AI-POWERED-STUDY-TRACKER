@@ -97,6 +97,19 @@ async function runTest() {
   });
   console.log('AI Coach analysis status:', aiRes.statusCode, JSON.stringify(aiRes.body, null, 2));
 
+  console.log('\n6. Performing AI Coach interactive chat...');
+  const chatRes = await request({
+    method: 'POST',
+    path: '/api/ai/chat',
+    headers: {
+      ...authHeaders,
+      'Content-Type': 'application/json'
+    }
+  }, {
+    message: 'What should I study next?'
+  });
+  console.log('AI Coach chat status:', chatRes.statusCode, JSON.stringify(chatRes.body, null, 2));
+
   console.log('\n✅ All integration tests passed successfully!');
 }
 

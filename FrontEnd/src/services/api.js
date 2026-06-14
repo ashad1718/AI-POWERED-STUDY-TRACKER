@@ -131,4 +131,26 @@ export const achievementAPI = {
   getAll: () => api.get('/achievements'),
 };
 
+// ─── Subject API calls ────────────────────────────────────────────────────────
+export const subjectAPI = {
+  getAll: (params) => api.get('/subjects', { params }),
+  create: (data)   => api.post('/subjects', data),
+  update: (id, data) => api.put(`/subjects/${id}`, data),
+  remove: (id)     => api.delete(`/subjects/${id}`),
+};
+
+// ─── Chapter API calls ────────────────────────────────────────────────────────
+export const chapterAPI = {
+  getAll: (params) => api.get('/chapters', { params }),
+  create: (data)   => api.post('/chapters', data),
+  update: (id, data) => api.put(`/chapters/${id}`, data),
+  remove: (id)     => api.delete(`/chapters/${id}`),
+};
+
+// ─── Semester Progress & Setup API calls ─────────────────────────────────────
+export const semesterAPI = {
+  getProgress: () => api.get('/semester-progress'),
+  setupSemester: (data) => api.post('/semester-progress/setup', data),
+};
+
 export default api;

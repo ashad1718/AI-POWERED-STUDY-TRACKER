@@ -122,6 +122,24 @@ const Navbar = ({ isLoggedIn, handleLogout, user }) => {
                   <span className="absolute bottom-0 left-0 w-full h-[1.5px] bg-[#00D4C7] scale-x-0 group-hover/item:scale-x-100 transition-transform duration-300 origin-left" />
                 </Link>
                 <Link 
+                  to="/subjects" 
+                  className={`text-sm font-medium transition-colors relative py-1 group/item ${
+                    location.pathname === '/subjects' ? 'text-[#00D4C7]' : 'text-white/70 hover:text-[#00D4C7]'
+                  }`}
+                >
+                  Subjects
+                  <span className="absolute bottom-0 left-0 w-full h-[1.5px] bg-[#00D4C7] scale-x-0 group-hover/item:scale-x-100 transition-transform duration-300 origin-left" />
+                </Link>
+                <Link 
+                  to="/chapters" 
+                  className={`text-sm font-medium transition-colors relative py-1 group/item ${
+                    location.pathname === '/chapters' ? 'text-[#00D4C7]' : 'text-white/70 hover:text-[#00D4C7]'
+                  }`}
+                >
+                  Chapters
+                  <span className="absolute bottom-0 left-0 w-full h-[1.5px] bg-[#00D4C7] scale-x-0 group-hover/item:scale-x-100 transition-transform duration-300 origin-left" />
+                </Link>
+                <Link 
                   to="/ai-coach" 
                   className={`text-sm font-medium transition-colors relative py-1 group/item ${
                     location.pathname === '/ai-coach' ? 'text-[#00D4C7]' : 'text-white/70 hover:text-[#00D4C7]'
@@ -239,7 +257,7 @@ const Navbar = ({ isLoggedIn, handleLogout, user }) => {
               </>
             ) : (
               <>
-                <Link 
+                 <Link 
                   to="/dashboard" 
                   onClick={() => setIsOpen(false)}
                   className={`text-sm font-semibold ${location.pathname === '/dashboard' ? 'text-[#00D4C7]' : 'text-white/70'}`}
@@ -252,6 +270,20 @@ const Navbar = ({ isLoggedIn, handleLogout, user }) => {
                   className={`text-sm font-semibold ${location.pathname === '/study-session' ? 'text-[#00D4C7]' : 'text-white/70'}`}
                 >
                   Study Session
+                </Link>
+                <Link 
+                  to="/subjects" 
+                  onClick={() => setIsOpen(false)}
+                  className={`text-sm font-semibold ${location.pathname === '/subjects' ? 'text-[#00D4C7]' : 'text-white/70'}`}
+                >
+                  Subjects
+                </Link>
+                <Link 
+                  to="/chapters" 
+                  onClick={() => setIsOpen(false)}
+                  className={`text-sm font-semibold ${location.pathname === '/chapters' ? 'text-[#00D4C7]' : 'text-white/70'}`}
+                >
+                  Chapters
                 </Link>
                 <Link 
                   to="/ai-coach" 

@@ -5,16 +5,80 @@ const AppError      = require('../utils/AppError');
 const asyncHandler  = require('../utils/asyncHandler');
 const { checkAndUnlockAchievements } = require('../services/achievement.service');
 
+// Helper to check and update auto-completion status for a chapter
+const checkAndUpdateChapterAutoCompletion = async (userId, subjectId, chapterId) => {
+  const Subject = require('../models/Subject');
+  const Chapter = require('../models/Chapter');
+
+  const chapter = await Chapter.findOne({ _id: chapterId, userId });
+  if (!chapter) return;
+
+  // If chapter was marked completed manually, keep it manually completed
+  if (chapter.completed && chapter.completedMethod === 'manual') {
+    return;
+  }
+
+  const subject = await Subject.findOne({ _id: subjectId, userId });
+  const threshold = subject?.completionThreshold || { sessions: 3, hours: 5 };
+
+  // Fetch all sessions logged for this chapter
+  const sessions = await Session.find({ userId, chapterId });
+  const sessionsCount = sessions.length;
+  const totalHours = sessions.reduce((sum, s) => sum + s.duration, 0) / 60;
+
+  const meetsThreshold = sessionsCount >= threshold.sessions || totalHours >= threshold.hours;
+
+  if (meetsThreshold) {
+    chapter.completed = true;
+    chapter.completedMethod = 'auto';
+    await chapter.save();
+  } else {
+    // If it was auto-completed but no longer meets threshold (e.g. session deleted), revert
+    if (chapter.completedMethod === 'auto') {
+      chapter.completed = false;
+      chapter.completedMethod = 'none';
+      await chapter.save();
+    }
+  }
+};
+
 // ─── POST /api/v1/sessions ────────────────────────────────────────────────────
 exports.createSession = asyncHandler(async (req, res) => {
-  const { subject, duration, date } = req.body;
+  const { subject, subjectId, chapterId, duration, date } = req.body;
+
+  let resolvedSubject = subject;
+  let resolvedChapter = '';
+
+  if (subjectId) {
+    const Subject = require('../models/Subject');
+    const sub = await Subject.findOne({ _id: subjectId, userId: req.user.id });
+    if (sub) {
+      resolvedSubject = sub.name;
+    }
+  }
+
+  if (chapterId) {
+    const Chapter = require('../models/Chapter');
+    const chap = await Chapter.findOne({ _id: chapterId, userId: req.user.id });
+    if (chap) {
+      resolvedChapter = chap.name;
+    }
+  }
 
   const session = await Session.create({
     userId:   req.user.id,
-    subject,
+    subject:  resolvedSubject || 'General Study',
+    subjectId: subjectId || null,
+    chapterId: chapterId || null,
+    chapter:  resolvedChapter,
     duration: Number(duration),
     date,
   });
+
+  // Re-evaluate chapter auto-completion status
+  if (subjectId && chapterId) {
+    await checkAndUpdateChapterAutoCompletion(req.user.id, subjectId, chapterId);
+  }
 
   // Check and unlock achievements asynchronously (don't block response)
   checkAndUnlockAchievements(req.user.id);
@@ -76,6 +140,14 @@ exports.deleteSession = asyncHandler(async (req, res) => {
     throw new AppError('You do not have permission to delete this session.', 403, 'FORBIDDEN');
   }
 
+  const { subjectId, chapterId } = session;
+
   await session.deleteOne();
+
+  // Re-evaluate chapter auto-completion status after deletion
+  if (subjectId && chapterId) {
+    await checkAndUpdateChapterAutoCompletion(req.user.id, subjectId, chapterId);
+  }
+
   res.status(204).send();
 });

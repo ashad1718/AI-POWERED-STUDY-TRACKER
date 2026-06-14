@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   Clock, TrendingUp, Calendar, Plus,
-  Award, ChevronRight, BookOpen, AlertCircle
+  Award, ChevronRight, BookOpen, AlertCircle, Layers, ArrowUpRight
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
@@ -13,10 +13,10 @@ import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import GlassCard from '../components/GlassCard';
 import AICoachCard from '../components/AICoachCard';
-import { statsAPI, sessionAPI } from '../services/api';
+import { statsAPI, sessionAPI, semesterAPI } from '../services/api';
 import { useGeminiAnalysis } from '../hooks/useGeminiAnalysis';
 
-const COLORS = ['#6C63FF', '#00E5FF', '#A78BFA', '#34D399', '#F472B6', '#FBBF24'];
+const COLORS = ['#6EA8FE', '#5EEAD4', '#A78BFA', '#34D399', '#F472B6', '#FBBF24'];
 
 const Dashboard = ({ user }) => {
   const containerRef = useRef(null);
@@ -25,6 +25,7 @@ const Dashboard = ({ user }) => {
   const [weeklyData, setWeeklyData] = useState([]);
   const [pieData,    setPieData]    = useState([]);
   const [sessions,   setSessions]   = useState([]);
+  const [semester,   setSemester]   = useState(null);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState('');
 
@@ -37,28 +38,31 @@ const Dashboard = ({ user }) => {
     hasAnalysed,
   } = useGeminiAnalysis();
 
+  const fetchAll = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [overviewRes, weeklyRes, subjectsRes, sessionsRes, semesterRes] = await Promise.all([
+        statsAPI.overview(),
+        statsAPI.weekly(),
+        statsAPI.subjects(),
+        sessionAPI.getAll({ limit: 5 }),
+        semesterAPI.getProgress(),
+      ]);
+      setOverview(overviewRes.data.data);
+      setWeeklyData(weeklyRes.data.data.weeklyData);
+      setPieData(subjectsRes.data.data.pieData);
+      setSessions(sessionsRes.data.data.sessions);
+      setSemester(semesterRes.data.data);
+    } catch (err) {
+      setError('Failed to load dashboard data. Please refresh.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchAll = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const [overviewRes, weeklyRes, subjectsRes, sessionsRes] = await Promise.all([
-          statsAPI.overview(),
-          statsAPI.weekly(),
-          statsAPI.subjects(),
-          sessionAPI.getAll({ limit: 5 }),
-        ]);
-        setOverview(overviewRes.data.data);
-        setWeeklyData(weeklyRes.data.data.weeklyData);
-        setPieData(subjectsRes.data.data.pieData);
-        setSessions(sessionsRes.data.data.sessions);
-      } catch (err) {
-        setError('Failed to load dashboard data. Please refresh.');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchAll();
   }, []);
 
@@ -81,7 +85,7 @@ const Dashboard = ({ user }) => {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="flex flex-col items-center space-y-4">
-          <span className="w-10 h-10 border-4 border-[#6C63FF] border-t-transparent rounded-full animate-spin" />
+          <span className="w-10 h-10 border-4 border-[#5EEAD4] border-t-transparent rounded-full animate-spin" />
           <p className="text-sm text-gray-400">Loading your dashboard…</p>
         </div>
       </div>
@@ -99,6 +103,8 @@ const Dashboard = ({ user }) => {
     );
   }
 
+  const hasSubjects = semester && semester.subjects && semester.subjects.length > 0;
+
   return (
     <div ref={containerRef} className="space-y-8 pb-12">
 
@@ -106,17 +112,103 @@ const Dashboard = ({ user }) => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-extrabold text-white tracking-tight">
-            Welcome, <span className="text-[#00E5FF] capitalize">{user?.name || 'Scholar'}</span>!
+            Welcome, <span className="text-[#5EEAD4] capitalize">{user?.name || 'Scholar'}</span>!
           </h1>
-          <p className="text-sm text-gray-400 mt-1">Here is your cognitive study overview for this week.</p>
+          <p className="text-sm text-gray-400 mt-1">Here is your semester learning and syllabus overview.</p>
         </div>
-        <Link
-          to="/study-session"
-          className="px-5 py-3 bg-gradient-to-r from-[#6C63FF] to-[#00E5FF] text-white font-semibold text-sm rounded-xl shadow-[0_4px_15px_rgba(108,99,255,0.3)] hover:shadow-[0_4px_20px_rgba(108,99,255,0.5)] hover:scale-[1.02] transition-all duration-300 flex items-center gap-2 cursor-pointer"
-        >
-          <Plus className="w-4 h-4" /> Start Study Session
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/semester-setup"
+            className="px-4 py-2.5 rounded-xl border border-white/10 text-white hover:bg-white/5 font-semibold text-sm transition-all"
+          >
+            Rollover Semester
+          </Link>
+          <Link
+            to="/study-session"
+            className="px-5 py-2.5 bg-gradient-to-r from-[#6EA8FE] to-[#5EEAD4] text-[#070B14] font-bold text-sm rounded-xl shadow-[0_4px_15px_rgba(94,234,212,0.3)] hover:scale-[1.02] transition-all flex items-center gap-2 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" /> Start Session
+          </Link>
+        </div>
       </div>
+
+      {/* ── Semester Progress Widget ───────────────────────────────────────── */}
+      {hasSubjects ? (
+        <GlassCard className="dashboard-stagger-card bg-gradient-to-br from-[#0F172A]/80 to-[#162033]/40 border-t border-[#5EEAD4]/20" hoverEffect={false}>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
+            <div>
+              <span className="px-2.5 py-1 text-[10px] font-black tracking-widest rounded bg-[#5EEAD4]/10 border border-[#5EEAD4]/20 text-[#5EEAD4] uppercase">
+                Active Semester Tracker
+              </span>
+              <h3 className="text-xl font-black text-white mt-2">Overall Syllabus Completion</h3>
+              <p className="text-xs text-gray-400">Chapters completed across all enrolled subjects</p>
+            </div>
+            
+            <div className="flex items-center gap-6">
+              <div className="text-right">
+                <span className="text-3xl font-black text-white">{semester.completedChapters} / {semester.totalChapters}</span>
+                <span className="text-xs text-gray-500 block">Chapters Completed</span>
+              </div>
+              <div className="text-right border-l border-white/10 pl-6">
+                <span className="text-3xl font-black text-[#5EEAD4]">{semester.overallProgress}%</span>
+                <span className="text-xs text-gray-500 block">Completion Rate</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="w-full h-3 bg-white/5 rounded-full overflow-hidden relative">
+            <div 
+              className="h-full bg-gradient-to-r from-[#6EA8FE] to-[#5EEAD4] rounded-full transition-all duration-1000"
+              style={{ width: `${semester.overallProgress}%` }}
+            />
+          </div>
+
+          {/* Grid of Active Subjects progress */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6 pt-6 border-t border-white/5">
+            {semester.subjects.map((sub, idx) => {
+              const totalChaps = sub.chapters?.length || 0;
+              const completedChaps = sub.chapters?.filter(c => c.completed).length || 0;
+              const subPercent = totalChaps > 0 ? Math.round((completedChaps / totalChaps) * 100) : 0;
+              
+              return (
+                <div key={sub._id || idx} className="p-3.5 rounded-xl bg-white/2 border border-white/5 space-y-2.5">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-white text-sm truncate max-w-[150px]">{sub.name}</span>
+                    <span className="text-[10px] text-gray-400 font-semibold">{completedChaps}/{totalChaps} Chaps</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-[#5EEAD4] rounded-full"
+                      style={{ width: `${subPercent}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between items-center text-[10px] text-gray-500 font-semibold">
+                    <span>{subPercent}% Completed</span>
+                    <Link to="/chapters" className="text-[#6EA8FE] hover:underline flex items-center gap-0.5">
+                      Syllabus <ArrowUpRight className="w-2.5 h-2.5" />
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </GlassCard>
+      ) : (
+        <GlassCard className="dashboard-stagger-card border border-dashed border-[#5EEAD4]/20 py-8 text-center" hoverEffect={false}>
+          <Layers className="w-10 h-10 mx-auto text-[#5EEAD4] mb-3 opacity-60" />
+          <h4 className="text-md font-bold text-white">No Semester Curriculum Setup Yet</h4>
+          <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto mb-4">
+            Initialize your active subjects and syllabus chapters to unlock graduation progress tracking and AICoach recommendations.
+          </p>
+          <Link
+            to="/semester-setup"
+            className="px-5 py-2 bg-[#5EEAD4] hover:opacity-90 text-[#070B14] font-bold text-xs rounded-xl inline-block"
+          >
+            Configure Semester Now
+          </Link>
+        </GlassCard>
+      )}
 
       {/* Stat Widgets */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -126,7 +218,7 @@ const Dashboard = ({ user }) => {
               <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Total Studied</p>
               <h3 className="text-3xl font-black text-white mt-2 font-mono">{totalHours}h</h3>
             </div>
-            <div className="p-2.5 bg-[#6C63FF]/20 text-[#6C63FF] rounded-xl"><Clock className="w-5 h-5" /></div>
+            <div className="p-2.5 bg-[#6EA8FE]/20 text-[#6EA8FE] rounded-xl"><Clock className="w-5 h-5" /></div>
           </div>
           <div className="flex items-center text-xs text-green-400 space-x-1 mt-4">
             <TrendingUp className="w-3.5 h-3.5" />
@@ -140,7 +232,7 @@ const Dashboard = ({ user }) => {
               <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Avg Session</p>
               <h3 className="text-3xl font-black text-white mt-2 font-mono">{avgSession}m</h3>
             </div>
-            <div className="p-2.5 bg-[#00E5FF]/20 text-[#00E5FF] rounded-xl"><BookOpen className="w-5 h-5" /></div>
+            <div className="p-2.5 bg-[#5EEAD4]/20 text-[#5EEAD4] rounded-xl"><BookOpen className="w-5 h-5" /></div>
           </div>
           <div className="flex items-center text-xs text-gray-400 mt-4">
             <span>From {overview?.totalSessions ?? 0} sessions</span>
@@ -153,7 +245,7 @@ const Dashboard = ({ user }) => {
               <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Study Streak</p>
               <h3 className="text-3xl font-black text-white mt-2 font-mono">{streak} Days</h3>
             </div>
-            <div className="p-2.5 bg-[#6C63FF]/20 text-[#6C63FF] rounded-xl"><Award className="w-5 h-5" /></div>
+            <div className="p-2.5 bg-[#6EA8FE]/20 text-[#6EA8FE] rounded-xl"><Award className="w-5 h-5" /></div>
           </div>
           <div className="flex items-center text-xs text-green-400 space-x-1 mt-4">
             <span>Consistency Score: {consistency}%</span>
@@ -166,7 +258,7 @@ const Dashboard = ({ user }) => {
               <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Tracked Subjects</p>
               <h3 className="text-3xl font-black text-white mt-2 font-mono">{subjectCount}</h3>
             </div>
-            <div className="p-2.5 bg-[#00E5FF]/20 text-[#00E5FF] rounded-xl"><Calendar className="w-5 h-5" /></div>
+            <div className="p-2.5 bg-[#5EEAD4]/20 text-[#5EEAD4] rounded-xl"><Calendar className="w-5 h-5" /></div>
           </div>
           <div className="flex items-center text-xs text-gray-400 mt-4">
             <span>Optimized syllabus logging</span>
@@ -176,7 +268,7 @@ const Dashboard = ({ user }) => {
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Weekly Area Chart */}
+        {/* Weekly Focus Analysis Chart */}
         <div className="lg:col-span-2">
           <GlassCard className="dashboard-stagger-card h-[400px] flex flex-col" hoverEffect={false}>
             <div className="flex justify-between items-center mb-6">
@@ -190,22 +282,22 @@ const Dashboard = ({ user }) => {
                 <AreaChart data={weeklyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorHours" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor="#6C63FF" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#6C63FF" stopOpacity={0} />
+                      <stop offset="5%"  stopColor="#6EA8FE" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#6EA8FE" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
                   <XAxis dataKey="name" stroke="#6b7280" />
                   <YAxis stroke="#6b7280" />
-                  <Tooltip contentStyle={{ backgroundColor: '#090D26', borderColor: 'rgba(255,255,255,0.1)', color: '#fff', borderRadius: '8px' }} />
-                  <Area type="monotone" dataKey="hours" stroke="#6C63FF" strokeWidth={3} fillOpacity={1} fill="url(#colorHours)" />
+                  <Tooltip contentStyle={{ backgroundColor: '#070B14', borderColor: 'rgba(255,255,255,0.1)', color: '#fff', borderRadius: '8px' }} />
+                  <Area type="monotone" dataKey="hours" stroke="#6EA8FE" strokeWidth={3} fillOpacity={1} fill="url(#colorHours)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </GlassCard>
         </div>
 
-        {/* Subject Pie Chart */}
+        {/* Subject Breakdown Pie Chart */}
         <GlassCard className="dashboard-stagger-card h-[400px] flex flex-col" hoverEffect={false}>
           <div className="mb-4">
             <h4 className="text-base font-bold text-white">Subject Breakdown</h4>
@@ -217,7 +309,7 @@ const Dashboard = ({ user }) => {
                 <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value">
                   {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                 </Pie>
-                <Tooltip contentStyle={{ backgroundColor: '#090D26', borderColor: 'rgba(255,255,255,0.1)', color: '#fff', borderRadius: '8px' }} />
+                <Tooltip contentStyle={{ backgroundColor: '#070B14', borderColor: 'rgba(255,255,255,0.1)', color: '#fff', borderRadius: '8px' }} />
                 <Legend layout="horizontal" verticalAlign="bottom" align="center" iconSize={8} wrapperStyle={{ paddingTop: 10, color: '#9ca3af' }} />
               </PieChart>
             </ResponsiveContainer>
@@ -247,7 +339,7 @@ const Dashboard = ({ user }) => {
               {sessions.length === 0 ? (
                 <p className="text-sm text-gray-500">
                   No sessions logged yet.{' '}
-                  <Link to="/study-session" className="text-[#00E5FF] hover:underline">Start one now →</Link>
+                  <Link to="/study-session" className="text-[#5EEAD4] hover:underline">Start one now →</Link>
                 </p>
               ) : (
                 <div className="space-y-4">
@@ -257,22 +349,24 @@ const Dashboard = ({ user }) => {
                       className="flex items-center justify-between p-3.5 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-colors"
                     >
                       <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-[#6C63FF]/20 text-[#6C63FF] rounded-lg">
+                        <div className="p-2 bg-[#6EA8FE]/20 text-[#6EA8FE] rounded-lg">
                           <BookOpen className="w-4 h-4" />
                         </div>
                         <div>
-                          <span className="text-sm font-bold text-white block">{session.subject}</span>
+                          <span className="text-sm font-bold text-white block">
+                            {session.subject} {session.chapter ? ` - ${session.chapter}` : ''}
+                          </span>
                           <span className="text-xs text-gray-400">{session.date}</span>
                         </div>
                       </div>
-                      <span className="text-sm font-semibold text-[#00E5FF] font-mono">{session.duration} mins</span>
+                      <span className="text-sm font-semibold text-[#5EEAD4] font-mono">{session.duration} mins</span>
                     </div>
                   ))}
                 </div>
               )}
             </div>
             <div className="pt-4 mt-6 border-t border-white/5 text-center">
-              <Link to="/study-session" className="text-xs font-semibold text-[#6C63FF] hover:underline">
+              <Link to="/study-session" className="text-xs font-semibold text-[#6EA8FE] hover:underline">
                 View all sessions →
               </Link>
             </div>

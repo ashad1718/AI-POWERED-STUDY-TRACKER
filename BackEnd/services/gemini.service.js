@@ -214,10 +214,7 @@ const testGeminiConnectivity = async () => {
   };
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DATA ANALYSIS HELPERS
-// Compute all statistics from raw session documents before building the prompt.
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── DATA ANALYSIS HELPERS ───────────────────────────────────────────────────
 
 /**
  * Builds a comprehensive stats object from the user's session array.
@@ -314,10 +311,65 @@ const analyseStudyData = (sessions) => {
   };
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PROMPT BUILDER
-// Crafts a structured, deterministic prompt so Gemini returns consistent JSON.
-// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * Combines general session stats with active subjects/chapters data.
+ */
+const compileLmsStats = (sessions, activeSubjects, chapters) => {
+  const baseStats = analyseStudyData(sessions) || {
+    totalHours: 0,
+    totalSessions: 0,
+    avgSessionMins: 0,
+    longestSession: 0,
+    shortSessions: 0,
+    longSessions: 0,
+    subjectDistribution: [],
+    weeklyTrend: [],
+    consistencyScore: 0,
+    streak: 0,
+    studyScore: 0,
+    productivityScore: 0,
+    studyDaysLast30: 0,
+    uniqueSubjects: 0,
+  };
+
+  const subjectProgress = activeSubjects.map(sub => {
+    const subId = sub._id.toString();
+    const subChapters = chapters.filter(c => c.subjectId.toString() === subId);
+    const totalChapters = subChapters.length;
+    const completedChapters = subChapters.filter(c => c.completed).length;
+    const remainingChapters = totalChapters - completedChapters;
+    const progressPercentage = totalChapters > 0 ? Math.round((completedChapters / totalChapters) * 100) : 0;
+
+    const subSessions = sessions.filter(s => s.subjectId && s.subjectId.toString() === subId);
+    const studyHours = subSessions.reduce((sum, s) => sum + s.duration, 0) / 60;
+
+    return {
+      name: sub.name,
+      totalChapters,
+      completedChapters,
+      remainingChapters,
+      progressPercentage,
+      studyHours: parseFloat(studyHours.toFixed(1)),
+      chapters: subChapters.map(c => ({ name: c.name, completed: c.completed })),
+    };
+  });
+
+  const totalActiveChapters = chapters.length;
+  const completedActiveChapters = chapters.filter(c => c.completed).length;
+  const remainingActiveChapters = totalActiveChapters - completedActiveChapters;
+  const overallLmsProgress = totalActiveChapters > 0 ? Math.round((completedActiveChapters / totalActiveChapters) * 100) : 0;
+
+  return {
+    ...baseStats,
+    subjectProgress,
+    totalActiveChapters,
+    completedActiveChapters,
+    remainingActiveChapters,
+    overallLmsProgress,
+  };
+};
+
+// ─── PROMPT BUILDER ───────────────────────────────────────────────────────────
 const buildPrompt = (stats, userName) => {
   const topSubjects = stats.subjectDistribution
     .slice(0, 5)
@@ -329,21 +381,28 @@ const buildPrompt = (stats, userName) => {
     .map((w) => `  ${w.week}: ${w.hours}h`)
     .join('\n');
 
-  return `You are an expert AI Study Coach analysing a student's learning data. 
+  const lmsOverviewStr = stats.subjectProgress && stats.subjectProgress.length > 0
+    ? stats.subjectProgress.map(sp => {
+        const chaptersList = sp.chapters.map(c => `      * ${c.name} [${c.completed ? 'COMPLETED' : 'INCOMPLETE'}]`).join('\n');
+        return `  - ${sp.name}: ${sp.completedChapters}/${sp.totalChapters} Chapters Completed (${sp.progressPercentage}% progress, ${sp.studyHours}h studied)\n${chaptersList}`;
+      }).join('\n')
+    : '  - No active subjects loaded yet.';
+
+  return `You are an expert AI Study Coach analysing a student's learning data and syllabus progress. 
 Provide personalised, actionable insights in the EXACT JSON format specified below.
 
 STUDENT PROFILE:
 - Name: ${userName || 'Student'}
 - Total study time: ${stats.totalHours} hours across ${stats.totalSessions} sessions
 - Average session length: ${stats.avgSessionMins} minutes
-- Longest single session: ${stats.longestSession} minutes
-- Short sessions (<20 min): ${stats.shortSessions}
-- Long sessions (≥60 min): ${stats.longSessions}
 - Current streak: ${stats.streak} days
-- Study days in last 30 days: ${stats.studyDaysLast30}/30 (${stats.consistencyScore}% consistency)
-- Unique subjects studied: ${stats.uniqueSubjects}
+- Study consistency: ${stats.consistencyScore}% over last 30 days
+- Overall Semester Syllabus Progress: ${stats.completedActiveChapters}/${stats.totalActiveChapters} Chapters Completed (${stats.overallLmsProgress}%)
 
-SUBJECT BREAKDOWN (top 5 by time):
+ACTIVE SYLLABUS STATUS (SUBJECTS AND CHAPTERS):
+${lmsOverviewStr}
+
+SUBJECT BREAKDOWN FROM SESSION HISTORY (top 5 by time):
 ${topSubjects}
 
 RECENT WEEKLY ACTIVITY (last 4 weeks):
@@ -357,39 +416,34 @@ COMPUTED SCORES:
 INSTRUCTIONS:
 Analyse this data and return ONLY valid JSON with this exact structure — no markdown, no explanation, no code blocks, just raw JSON:
 {
-  "strengths": ["2-3 specific strengths based on actual data — be concrete, not generic"],
+  "strengths": ["2-3 specific strengths based on actual data — be concrete, under 15 words"],
   "weaknesses": ["2-3 specific areas needing improvement based on actual data"],
   "recommendations": ["3-4 specific, actionable steps the student can take this week"],
-  "weeklyGoal": "One specific, measurable goal for the next 7 days (e.g. 'Study Calculus for at least 3 hours across 4 sessions')",
-  "motivation": "One powerful, personalised motivational message (2-3 sentences max)"
+  "weeklyGoal": "One specific, measurable goal for the next 7 days based on syllabus progress",
+  "motivation": "One powerful, personalised motivational message (2-3 sentences max)",
+  "subjectPriorities": ["2-3 subjects list ordered by highest priority based on lagging chapter completion or low study hours"],
+  "chapterRecommendations": ["2-3 specific incomplete chapters that the student should focus on next"],
+  "semesterCompletionPrediction": "A detailed, encouraging prediction of when they will finish the remaining syllabus based on their current study hours and chapter completion rate (e.g. 'At your current pace of 5.5 hours/week, you are on track to complete the remaining 12 chapters in 4.5 weeks, right before final exams.')"
 }
 
 Requirements:
 - Be specific to THIS student's data — no generic advice
-- Keep each array item under 15 words
-- weeklyGoal must be achievable based on their current pace
-- motivation must reference something specific from their data
+- Keep strengths, weaknesses, priorities, and chapter recommendations concise (under 15 words each)
 - Return ONLY the JSON object, nothing else`;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MAIN EXPORT
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── MAIN EXPORTS ────────────────────────────────────────────────────────────
 
 /**
  * analyseWithGemini
  * Runs the full pipeline: analyse data → build prompt → call Gemini → parse response.
- *
- * @param {Array}  sessions  - user's MongoDB session documents
- * @param {string} userName  - user's display name for personalisation
- * @returns {Object} { stats, insights }
  */
-const analyseWithGemini = async (sessions, userName) => {
-  // 1. Calculate all stats from raw sessions
-  const stats = analyseStudyData(sessions);
+const analyseWithGemini = async (sessions, userName, activeSubjects = [], chapters = []) => {
+  // 1. Calculate all stats from raw sessions and LMS progress
+  const stats = compileLmsStats(sessions, activeSubjects, chapters);
 
   // 2. Handle empty state
-  if (!stats) {
+  if (!stats || (sessions.length === 0 && activeSubjects.length === 0)) {
     return {
       stats:    null,
       insights: null,
@@ -410,7 +464,6 @@ const analyseWithGemini = async (sessions, userName) => {
     const result = await generateGeminiText({ contents: prompt, config: { maxOutputTokens: 2048 } });
     rawText = result.text;
   } catch (geminiErr) {
-    // Re-throw with a cleaner message
     const msg = geminiErr.message || 'Gemini API error';
     if (msg.includes('API_KEY_INVALID')) {
       throw new Error('Invalid Gemini API key. Check your GEMINI_API_KEY environment variable.');
@@ -435,7 +488,10 @@ const analyseWithGemini = async (sessions, userName) => {
   }
 
   // 6. Validate shape
-  const required = ['strengths', 'weaknesses', 'recommendations', 'weeklyGoal', 'motivation'];
+  const required = [
+    'strengths', 'weaknesses', 'recommendations', 'weeklyGoal', 'motivation',
+    'subjectPriorities', 'chapterRecommendations', 'semesterCompletionPrediction'
+  ];
   for (const key of required) {
     if (!(key in insights)) {
       throw new Error(`Gemini response missing field: ${key}`);
@@ -445,9 +501,60 @@ const analyseWithGemini = async (sessions, userName) => {
   return { stats, insights, isEmpty: false };
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// UTILITY FUNCTIONS
-// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * chatWithGemini
+ * Interactive conversation with the AI Coach.
+ */
+const chatWithGemini = async (sessions, userName, message, activeSubjects = [], chapters = []) => {
+  // 1. Calculate stats to give the coach context
+  const stats = compileLmsStats(sessions, activeSubjects, chapters);
+
+  // 2. Build system instructions with context
+  let contextPrompt = `You are the student's interactive AI Study Coach. Your name is AI Study Coach.
+The student's name is ${userName || 'Student'}.
+`;
+
+  if (stats && (stats.totalSessions > 0 || stats.subjectProgress.length > 0)) {
+    const activeSubsStr = stats.subjectProgress.map(sp => 
+      `${sp.name} (${sp.completedChapters}/${sp.totalChapters} chapters, ${sp.studyHours}h)`
+    ).join(', ');
+
+    contextPrompt += `
+Here is the student's current study and syllabus progress:
+- Total study time: ${stats.totalHours} hours across ${stats.totalSessions} sessions.
+- Average session length: ${stats.avgSessionMins} minutes.
+- Current streak: ${stats.streak} days.
+- Consistency (last 30 days): ${stats.consistencyScore}% consistency.
+- Study Score: ${stats.studyScore}/100.
+- Productivity Score: ${stats.productivityScore}/100.
+- Active Subjects Status: ${activeSubsStr || 'None'}.
+- Syllabus completion rate: ${stats.completedActiveChapters}/${stats.totalActiveChapters} chapters completed (${stats.overallLmsProgress}%).
+`;
+  } else {
+    contextPrompt += `
+The student has not logged any study sessions nor configured any active subjects. Encourage them to add their subjects and start logging study sessions.
+`;
+  }
+
+  contextPrompt += `
+Please respond to the student's message in a helpful, coaching, and motivating tone. Keep your responses concise, friendly, and directly addressing their questions.
+`;
+
+  // 3. Call Gemini
+  const contents = [
+    { text: contextPrompt },
+    { text: `Student message: ${message}` }
+  ];
+
+  const result = await generateGeminiText({ contents, config: { maxOutputTokens: 1024 } });
+
+  return {
+    response: result.text,
+    timestamp: new Date().toISOString()
+  };
+};
+
+// ─── UTILITY FUNCTIONS ───────────────────────────────────────────────────────
 function getISOWeek(date) {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
@@ -472,4 +579,4 @@ function calcStreak(uniqueDatesDesc) {
   return streak;
 }
 
-module.exports = { initGemini, analyseWithGemini, analyseStudyData };
+module.exports = { initGemini, testGeminiConnectivity, analyseWithGemini, analyseStudyData, chatWithGemini };
