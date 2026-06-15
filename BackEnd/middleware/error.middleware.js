@@ -104,23 +104,22 @@ const sendProdError = (err, res) => {
  */
 // eslint-disable-next-line no-unused-vars
 const errorHandler = (err, req, res, next) => {
+  // Convert known Mongoose / JWT errors into AppErrors
+  let error = Object.assign(Object.create(Object.getPrototypeOf(err)), err);
+  error.message = err.message;
+
+  if (error.name === 'CastError')             error = handleCastError(error);
+  if (error.code === 11000)                   error = handleDuplicateKeyError(error);
+  if (error.name === 'ValidationError')       error = handleValidationError(error);
+  if (error.name === 'JsonWebTokenError')     error = handleJWTError();
+  if (error.name === 'TokenExpiredError')     error = handleJWTExpiredError();
+
   // Default to 500 if no statusCode was set
-  err.statusCode = err.statusCode || 500;
+  error.statusCode = error.statusCode || 500;
 
   if (process.env.NODE_ENV === 'development') {
-    sendDevError(err, res);
+    sendDevError(error, res);
   } else {
-    // Clone err so we don't mutate the original error object
-    let error = Object.assign(Object.create(Object.getPrototypeOf(err)), err);
-    error.message = err.message;
-
-    // Convert known Mongoose / JWT errors into AppErrors
-    if (error.name === 'CastError')             error = handleCastError(error);
-    if (error.code === 11000)                   error = handleDuplicateKeyError(error);
-    if (error.name === 'ValidationError')       error = handleValidationError(error);
-    if (error.name === 'JsonWebTokenError')     error = handleJWTError();
-    if (error.name === 'TokenExpiredError')     error = handleJWTExpiredError();
-
     sendProdError(error, res);
   }
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -24,9 +24,12 @@ import ChapterManagerPage from './pages/ChapterManagerPage';
 import SemesterSetupPage  from './pages/SemesterSetupPage';
 
 import { useAuth }      from './hooks/useAuth';
+import { userAPI, refreshAccessToken } from './services/api';
+import { ThemeProvider } from './context/ThemeContext';
 
 const AppContent = () => {
   const location = useLocation();
+  const navigate = useNavigate();
 
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     return !!localStorage.getItem('accessToken');
@@ -35,9 +38,68 @@ const AppContent = () => {
     const stored = localStorage.getItem('user');
     return stored ? JSON.parse(stored) : null;
   });
+  const [isRestoringAuth, setIsRestoringAuth] = useState(true);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const { login, register, logout } = useAuth(setIsLoggedIn, setUser);
+
+  // ─── Initial Session Restoration & Verification ────────────────────────────
+  useEffect(() => {
+    const restoreSession = async () => {
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        console.log('[AUTH] Token found on startup. Verifying session...');
+        try {
+          const res = await userAPI.getMe();
+          const verifiedUser = res.data.data;
+          console.log(`[AUTH] Authentication restored. Logged in as: ${verifiedUser.name}`);
+          setUser(verifiedUser);
+          setIsLoggedIn(true);
+        } catch (err) {
+          console.error('[AUTH] Startup token verification failed. Clearing session.', err);
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('user');
+          setUser(null);
+          setIsLoggedIn(false);
+        }
+      } else {
+        console.log('[AUTH] No access token in localStorage. Attempting automatic refresh...');
+        try {
+          const newToken = await refreshAccessToken();
+          if (newToken) {
+            const res = await userAPI.getMe();
+            const verifiedUser = res.data.data;
+            console.log(`[AUTH] Authentication restored via refresh token. Logged in as: ${verifiedUser.name}`);
+            setUser(verifiedUser);
+            setIsLoggedIn(true);
+          } else {
+            setUser(null);
+            setIsLoggedIn(false);
+          }
+        } catch (refreshErr) {
+          console.log('[AUTH] No active session found on startup.');
+          setUser(null);
+          setIsLoggedIn(false);
+        }
+      }
+      setIsRestoringAuth(false);
+    };
+
+    restoreSession();
+  }, []);
+
+  // ─── Listen to Centralized Auth Logout Events (from interceptor) ─────────────
+  useEffect(() => {
+    const handleAuthLogout = (e) => {
+      console.warn('[AUTH] Received logout event. Session invalidated.');
+      logout();
+      if (e.detail?.expired) {
+        navigate('/login', { state: { message: 'Your session has expired. Please sign in again.' } });
+      }
+    };
+    window.addEventListener('auth-logout', handleAuthLogout);
+    return () => window.removeEventListener('auth-logout', handleAuthLogout);
+  }, [logout, navigate]);
 
   // ─── Lenis Smooth Scroll ───────────────────────────────────────────────────
   useEffect(() => {
@@ -57,7 +119,9 @@ const AppContent = () => {
 
   // ─── Sync user to localStorage when it changes ────────────────────────────
   useEffect(() => {
-    if (user) localStorage.setItem('user', JSON.stringify(user));
+    if (user) {
+      localStorage.setItem('user', JSON.stringify(user));
+    }
   }, [user]);
 
   // ─── Scroll-to anchor after navigation ────────────────────────────────────
@@ -80,8 +144,30 @@ const AppContent = () => {
   const PublicRoute = ({ children }) =>
     !isLoggedIn ? children : <Navigate to="/dashboard" replace />;
 
+  // Render loading screen while verifying credentials
+  if (isRestoringAuth) {
+    return (
+      <div className="relative min-h-screen font-sans antialiased text-text-primary selection:bg-primary/30 select-none bg-background flex items-center justify-center">
+        <BlobBackground />
+        <div className="flex flex-col items-center space-y-6 z-10 p-8 rounded-3xl bg-surface/40 backdrop-blur-xl border border-border shadow-2xl max-w-sm text-center">
+          <div className="relative flex items-center justify-center w-16 h-16">
+            <span className="absolute w-16 h-16 border-4 border-secondary/20 rounded-full" />
+            <span className="absolute w-16 h-16 border-4 border-t-secondary border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin" />
+            <div className="p-3 bg-gradient-to-tr from-[#7B4DFF] to-[#00D4C7] rounded-xl flex items-center justify-center shadow-lg">
+              <span className="w-6 h-6 rounded-full bg-white/10" />
+            </div>
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-text-primary tracking-tight">StudyAI</h3>
+            <p className="text-xs text-text-secondary mt-1.5 font-medium">Verifying credentials and restoring session...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="relative min-h-screen font-sans antialiased text-white selection:bg-[#6C63FF]/30 select-none">
+    <div className="relative min-h-screen font-sans antialiased text-text-primary selection:bg-primary/30 select-none bg-background transition-colors duration-300">
       <BlobBackground />
 
       <div className="flex flex-col min-h-screen">
@@ -117,9 +203,11 @@ const AppContent = () => {
 };
 
 const App = () => (
-  <Router>
-    <AppContent />
-  </Router>
+  <ThemeProvider>
+    <Router>
+      <AppContent />
+    </Router>
+  </ThemeProvider>
 );
 
 export default App;

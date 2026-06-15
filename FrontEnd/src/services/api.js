@@ -12,7 +12,10 @@ api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('accessToken');
     if (token) {
+      console.log(`[AUTH] Token found in localStorage for request: ${config.url}`);
       config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      console.warn(`[AUTH] No token found in localStorage for request: ${config.url}`);
     }
     return config;
   },
@@ -20,18 +23,39 @@ api.interceptors.request.use(
 );
 
 // ─── Response Interceptor: auto-refresh on 401 ────────────────────────────────
-let isRefreshing    = false;
-let failedQueue     = [];
+let refreshPromise = null;
 
-const processQueue = (error, token = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
+export const refreshAccessToken = async () => {
+  if (refreshPromise) {
+    console.log('[AUTH] Token refresh already in progress. Reusing existing refresh promise.');
+    return refreshPromise;
+  }
+
+  console.log('[AUTH] Starting token refresh flow...');
+  refreshPromise = (async () => {
+    try {
+      const { data } = await axios.post(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'}/auth/refresh`,
+        {},
+        { withCredentials: true }
+      );
+
+      const newToken = data.data.accessToken;
+      console.log('[AUTH] Token refreshed successfully. Saving to localStorage.');
+      localStorage.setItem('accessToken', newToken);
+      return newToken;
+    } catch (refreshError) {
+      console.error('[AUTH] Token refresh failed. Invalid/expired session. Clearing credentials.', refreshError);
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('user');
+      window.dispatchEvent(new CustomEvent('auth-logout', { detail: { expired: true } }));
+      throw refreshError;
+    } finally {
+      refreshPromise = null;
     }
-  });
-  failedQueue = [];
+  })();
+
+  return refreshPromise;
 };
 
 api.interceptors.response.use(
@@ -46,44 +70,15 @@ api.interceptors.response.use(
       !originalRequest.url.includes('/auth/refresh') &&
       !originalRequest.url.includes('/auth/login')
     ) {
-      if (isRefreshing) {
-        // Queue the failed request until refresh completes
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        })
-          .then((token) => {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-            return api(originalRequest);
-          })
-          .catch((err) => Promise.reject(err));
-      }
-
       originalRequest._retry = true;
-      isRefreshing = true;
+      console.warn(`[AUTH] Token expired (401 Unauthorized) on request: ${originalRequest.url}. Retrying with refreshed token...`);
 
       try {
-        const { data } = await axios.post(
-          `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'}/auth/refresh`,
-          {},
-          { withCredentials: true }
-        );
-
-        const newToken = data.data.accessToken;
-        localStorage.setItem('accessToken', newToken);
-        api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
-        processQueue(null, newToken);
-
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        const token = await refreshAccessToken();
+        originalRequest.headers.Authorization = `Bearer ${token}`;
         return api(originalRequest);
-      } catch (refreshError) {
-        processQueue(refreshError, null);
-        // Refresh failed — clear auth and redirect to login
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('user');
-        window.location.href = '/login';
-        return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
+      } catch (err) {
+        return Promise.reject(err);
       }
     }
 

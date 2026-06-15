@@ -1,9 +1,9 @@
 'use strict';
 
 const { verifyAccessToken } = require('../config/jwt');
-const User                  = require('../models/User');
-const AppError              = require('../utils/AppError');
-const asyncHandler          = require('../utils/asyncHandler');
+const User = require('../models/User');
+const AppError = require('../utils/AppError');
+const asyncHandler = require('../utils/asyncHandler');
 
 /**
  * protect — Express middleware that guards private routes.

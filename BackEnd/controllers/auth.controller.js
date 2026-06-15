@@ -1,5 +1,6 @@
 'use strict';
 
+const jwt          = require('jsonwebtoken');
 const User         = require('../models/User');
 const AppError     = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
@@ -22,6 +23,8 @@ const sendTokenResponse = (user, statusCode, res) => {
 
   // Set refresh token as httpOnly cookie
   res.cookie('refreshToken', refreshToken, refreshCookieOptions);
+
+  console.log(`[AUTH] Tokens issued for user: ${user.email} (ID: ${user._id})`);
 
   res.status(statusCode).json({
     success: true,
@@ -79,6 +82,7 @@ exports.refresh = asyncHandler(async (req, res) => {
   const token = req.cookies.refreshToken;
 
   if (!token) {
+    console.warn('[AUTH] Refresh failed: No refresh token cookie found.');
     throw new AppError('No refresh token provided. Please log in again.', 401, 'NO_REFRESH_TOKEN');
   }
 
@@ -86,18 +90,38 @@ exports.refresh = asyncHandler(async (req, res) => {
   let decoded;
   try {
     decoded = verifyRefreshToken(token);
-  } catch {
+  } catch (err) {
+    console.error(`[AUTH] Refresh failed: Invalid or expired refresh token. Error: ${err.message}`);
+    // Revoke token if possible by decoding it without verification
+    try {
+      const parsed = jwt.decode(token);
+      if (parsed && parsed.id) {
+        await User.findByIdAndUpdate(parsed.id, { refreshToken: null });
+        console.log(`[AUTH] Revoked invalid refresh token for user ID: ${parsed.id}`);
+      }
+    } catch (decodeErr) {
+      console.error('[AUTH] Failed to decode refresh token for revocation:', decodeErr.message);
+    }
+    res.clearCookie('refreshToken', clearCookieOptions);
     throw new AppError('Invalid or expired refresh token. Please log in again.', 401, 'INVALID_REFRESH_TOKEN');
   }
 
   // Find user and validate token matches what's stored
   const user = await User.findById(decoded.id).select('+refreshToken');
   if (!user || user.refreshToken !== token) {
+    console.error(`[AUTH] Refresh failed: Token mismatch or user not found. User ID: ${decoded?.id}`);
+    if (user) {
+      user.refreshToken = null;
+      await user.save({ validateBeforeSave: false });
+      console.log(`[AUTH] Revoked mismatched refresh token for user: ${user.email}`);
+    }
+    res.clearCookie('refreshToken', clearCookieOptions);
     throw new AppError('Refresh token mismatch. Please log in again.', 401, 'REFRESH_TOKEN_REUSE');
   }
 
   // Issue new access token
   const newAccessToken = signAccessToken(user);
+  console.log(`[AUTH] Refresh successful. New access token issued for user: ${user.email} (ID: ${user._id})`);
 
   res.status(200).json({
     success: true,

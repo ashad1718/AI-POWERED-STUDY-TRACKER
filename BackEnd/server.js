@@ -1,4 +1,5 @@
 'use strict';
+// Trigger reload after env change
 
 require('dotenv').config();
 

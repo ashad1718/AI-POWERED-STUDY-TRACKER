@@ -41,7 +41,7 @@ const RegisterPage = ({ handleLogin }) => {
       transition={{ duration: 0.5, ease: 'easeInOut' }}
       className="min-h-screen flex items-center justify-center px-4 relative"
     >
-      <Link to="/" className="absolute top-8 left-8 flex items-center space-x-2 text-xs font-semibold text-gray-400 hover:text-white transition-colors">
+      <Link to="/" className="absolute top-8 left-8 flex items-center space-x-2 text-xs font-semibold text-text-secondary hover:text-text-primary transition-colors">
         <ArrowLeft className="w-4 h-4" /> <span>Back to Home</span>
       </Link>
 
@@ -50,8 +50,8 @@ const RegisterPage = ({ handleLogin }) => {
           <div className="p-3 bg-gradient-to-tr from-[#6C63FF] to-[#00E5FF] rounded-2xl shadow-[0_0_20px_rgba(108,99,255,0.4)] mb-4">
             <Brain className="w-8 h-8 text-white" />
           </div>
-          <h2 className="text-3xl font-extrabold text-white text-center">Create Account</h2>
-          <p className="text-xs text-gray-400 mt-2">Start mapping your learning goals in 60 seconds</p>
+          <h2 className="text-3xl font-extrabold text-text-primary text-center">Create Account</h2>
+          <p className="text-xs text-text-secondary mt-2">Start mapping your learning goals in 60 seconds</p>
         </div>
 
         <GlassCard className="!p-8 shadow-2xl relative" hoverEffect={false}>
@@ -67,7 +67,7 @@ const RegisterPage = ({ handleLogin }) => {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-gray-300 uppercase tracking-wider block">Full Name</label>
+              <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider block">Full Name</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
                   <User className="w-4 h-4" />
@@ -80,7 +80,7 @@ const RegisterPage = ({ handleLogin }) => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-gray-300 uppercase tracking-wider block">Email Address</label>
+              <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider block">Email Address</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
                   <Mail className="w-4 h-4" />
@@ -93,7 +93,7 @@ const RegisterPage = ({ handleLogin }) => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-gray-300 uppercase tracking-wider block">Password</label>
+              <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider block">Password</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
                   <Lock className="w-4 h-4" />
@@ -105,7 +105,7 @@ const RegisterPage = ({ handleLogin }) => {
               </div>
             </div>
 
-            <p className="text-[10px] text-gray-500 leading-normal">
+            <p className="text-[10px] text-text-secondary leading-normal">
               By registering, you agree to our Terms of Service and Privacy Policy.
             </p>
 
@@ -120,7 +120,7 @@ const RegisterPage = ({ handleLogin }) => {
           </form>
 
           <div className="mt-8 text-center">
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-text-secondary">
               Already have an account?{' '}
               <Link to="/login" className="text-[#00E5FF] hover:underline font-semibold">Sign In</Link>
             </p>

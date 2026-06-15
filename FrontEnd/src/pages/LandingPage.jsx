@@ -20,7 +20,7 @@ const FloatingBrain = () => (
         <radialGradient id="brainGlow" cx="50%" cy="50%" r="50%">
           <stop offset="0%" stopColor="#00D4C7" stopOpacity="0.8" />
           <stop offset="60%" stopColor="#7B4DFF" stopOpacity="0.4" />
-          <stop offset="100%" stopColor="#11072F" stopOpacity="0" />
+          <stop offset="100%" stopColor="var(--color-background)" stopOpacity="0" />
         </radialGradient>
         <linearGradient id="neuralPath" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="#00D4C7" />
@@ -162,13 +162,13 @@ const FloatingBadge = () => (
         <path d="M35 50L25 90L50 80L75 90L65 50" fill="url(#medalRibbon)" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" />
         
         {/* Outer Ring */}
-        <circle cx="50" cy="45" r="30" fill="#11072F" stroke="url(#goldGrad)" strokeWidth="4" />
+        <circle cx="50" cy="45" r="30" fill="var(--color-background)" stroke="url(#goldGrad)" strokeWidth="4" />
         <circle cx="50" cy="45" r="26" fill="url(#goldGrad)" fillOpacity="0.1" />
         
         {/* Star Icon */}
         <path d="M50 25L54.7 34.6L65.3 36.1L57.7 43.6L59.5 54.1L50 49.2L40.5 54.1L42.3 43.6L34.7 36.1L45.3 34.6L50 25Z" fill="url(#goldGrad)" />
       </svg>
-      <div className="absolute bottom-6 bg-[#00D4C7] text-[#11072F] text-[8px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full shadow-md border border-white/20">
+      <div className="absolute bottom-6 bg-[#00D4C7] text-background text-[8px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full shadow-md border border-white/20">
         14D STREAK
       </div>
     </div>
@@ -412,7 +412,7 @@ const LandingPage = () => {
   };
 
   return (
-    <div ref={containerRef} className="w-full relative min-h-screen bg-[#11072F] text-white">
+    <div ref={containerRef} className="w-full relative min-h-screen bg-background text-text-primary transition-colors duration-300">
       
       {/* Scroll Progress Bar */}
       <div className="scroll-indicator-bar fixed top-0 left-0 right-0 h-[4px] bg-gradient-to-r from-[#5B2EFF] via-[#00D4C7] to-[#8D61FF] origin-left z-50 scale-x-0" />
@@ -435,9 +435,9 @@ const LandingPage = () => {
 
         <div className="max-w-6xl mx-auto text-center flex flex-col items-center">
           {/* Release Tagline */}
-          <div className="inline-flex items-center space-x-2.5 px-4 py-2 rounded-full bg-white/5 border border-white/10 mb-8 hover:border-[#00D4C7]/30 transition-colors duration-300">
+          <div className="inline-flex items-center space-x-2.5 px-4 py-2 rounded-full bg-surface/10 border border-border mb-8 hover:border-[#00D4C7]/30 transition-colors duration-300">
             <span className="flex h-2.5 w-2.5 rounded-full bg-[#00D4C7] animate-pulse-subtle" />
-            <span className="text-xs font-semibold text-white/70 tracking-widest uppercase font-mono">StudyAI v2.0 Cinematic Overhaul</span>
+            <span className="text-xs font-semibold text-text-secondary tracking-widest uppercase font-mono">StudyAI v2.0 Cinematic Overhaul</span>
           </div>
 
           {/* Heading */}
@@ -448,7 +448,7 @@ const LandingPage = () => {
           </h1>
 
           {/* Subheading */}
-          <p className="hero-sub text-lg sm:text-2xl text-white/70 max-w-3xl mx-auto mb-10 leading-relaxed font-sans font-light">
+          <p className="hero-sub text-lg sm:text-2xl text-text-secondary max-w-3xl mx-auto mb-10 leading-relaxed font-sans font-light">
             Track your study sessions, get AI-powered insights, and organize your syllabus in one beautiful workspace.
           </p>
 
@@ -479,9 +479,8 @@ const LandingPage = () => {
         <div className="w-full flex justify-center perspective-2000 py-10 px-4">
           <div 
             ref={dashboardRef}
-            className="relative transform-style-3d w-full max-w-4xl rounded-2xl border border-white/10 shadow-[0_50px_100px_rgba(0,0,0,0.6)] backdrop-blur-2xl p-6 md:p-8"
+            className="relative transform-style-3d w-full max-w-4xl rounded-2xl border border-border bg-surface/35 shadow-[0_50px_100px_rgba(0,0,0,0.2)] dark:shadow-[0_50px_100px_rgba(0,0,0,0.6)] backdrop-blur-2xl p-6 md:p-8"
             style={{
-              background: 'rgba(255,255,255,0.04)',
               transform: 'rotateX(10deg) rotateY(-8deg)'
             }}
           >
@@ -545,7 +544,7 @@ const LandingPage = () => {
             {/* Layer 2: Floating AI Suggestions Panel (Parallax Layer) */}
             <div 
               ref={layerOverlay2Ref}
-              className="absolute -bottom-8 -right-4 md:-right-12 w-64 p-5 rounded-2xl bg-[#11072F]/90 backdrop-blur-xl border border-[#00D4C7]/20 shadow-premium-glow transform-style-3d pointer-events-none"
+              className="absolute -bottom-8 -right-4 md:-right-12 w-64 p-5 rounded-2xl bg-background/90 backdrop-blur-xl border border-[#00D4C7]/20 shadow-premium-glow transform-style-3d pointer-events-none"
               style={{ transform: 'translateZ(55px)' }}
             >
               <div className="flex items-center space-x-2.5 mb-2.5">
@@ -577,9 +576,9 @@ const LandingPage = () => {
 
         {/* Scroll Indicator */}
         <div className="flex flex-col items-center mt-12 space-y-2 pointer-events-none opacity-40">
-          <span className="text-[10px] uppercase font-mono tracking-widest text-white/50">Scroll to Explore</span>
-          <div className="w-6 h-10 border-2 border-white/25 rounded-full flex justify-center p-1">
-            <span className="w-1.5 h-2 bg-[#00D4C7] rounded-full animate-bounce" />
+          <span className="text-[10px] uppercase font-mono tracking-widest text-text-secondary">Scroll to Explore</span>
+          <div className="w-6 h-10 border-2 border-border rounded-full flex justify-center p-1">
+            <span className="w-1.5 h-2 bg-secondary rounded-full animate-bounce" />
           </div>
         </div>
       </section>
@@ -589,18 +588,17 @@ const LandingPage = () => {
       {/* Section 1: AI Study Coach */}
       <section 
         id="story-1"
-        className="story-section min-h-screen flex items-center justify-center relative overflow-hidden py-32 border-b border-white/5"
+        className="story-section min-h-[50vh] flex items-center justify-center relative overflow-hidden py-12 border-b border-border/40"
       >
         <div className="max-w-6xl mx-auto px-4 md:px-8 w-full grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           <div className="space-y-8 text-left">
             <div className="section-heading space-y-4">
-              <span className="text-sm font-bold text-[#00D4C7] uppercase font-mono tracking-widest">Section 01 // Interactive Coach</span>
               <h2 className="text-4xl md:text-7xl font-black tracking-tight leading-tight">
                 AI Study Coach
               </h2>
             </div>
-            <p className="section-text text-lg text-white/70 leading-relaxed font-light">
-              A conversational tutor that analyzes your logged study habits to generate custom revision schedules, suggest optimal study breaks, and share tips to improve your learning speed.
+            <p className="section-text text-lg text-text-secondary leading-relaxed font-light">
+              An AI helper you can chat with. It looks at how you study and creates a personalized schedule, tells you when to take breaks, and gives you tips to learn faster.
             </p>
           </div>
           <div className="section-graphic flex justify-center">
@@ -612,7 +610,7 @@ const LandingPage = () => {
       {/* Section 2: Smart Analytics */}
       <section 
         id="story-2"
-        className="story-section min-h-screen flex items-center justify-center relative overflow-hidden py-32 border-b border-white/5"
+        className="story-section min-h-[50vh] flex items-center justify-center relative overflow-hidden py-12 border-b border-border/40"
       >
         <div className="max-w-6xl mx-auto px-4 md:px-8 w-full grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           <div className="section-graphic flex justify-center lg:order-last">
@@ -620,13 +618,12 @@ const LandingPage = () => {
           </div>
           <div className="space-y-8 text-left">
             <div className="section-heading space-y-4">
-              <span className="text-sm font-bold text-[#7B4DFF] uppercase font-mono tracking-widest">Section 02 // Deep Analytics</span>
               <h2 className="text-4xl md:text-7xl font-black tracking-tight leading-tight">
                 Smart Analytics
               </h2>
             </div>
-            <p className="section-text text-lg text-white/70 leading-relaxed font-light">
-              Beautiful, visual charts that summarize your study hours, focus trends, and subject distributions, making it simple to track your day-to-day progress.
+            <p className="section-text text-lg text-text-secondary leading-relaxed font-light">
+              Easy-to-read charts that show your study hours, focus trends, and progress, helping you see how you are doing every day.
             </p>
           </div>
         </div>
@@ -635,18 +632,17 @@ const LandingPage = () => {
       {/* Section 3: Performance Tracking */}
       <section 
         id="story-3"
-        className="story-section min-h-screen flex items-center justify-center relative overflow-hidden py-32 border-b border-white/5"
+        className="story-section min-h-[50vh] flex items-center justify-center relative overflow-hidden py-12 border-b border-border/40"
       >
         <div className="max-w-6xl mx-auto px-4 md:px-8 w-full grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           <div className="space-y-8 text-left">
             <div className="section-heading space-y-4">
-              <span className="text-sm font-bold text-[#00D4C7] uppercase font-mono tracking-widest">Section 03 // Focus Management</span>
               <h2 className="text-4xl md:text-7xl font-black tracking-tight leading-tight">
                 Performance Tracking
               </h2>
             </div>
-            <p className="section-text text-lg text-white/70 leading-relaxed font-light">
-              A focus tool where you set daily targets, log your active sessions, and record your confidence level for each subject to prevent mental fatigue and burnout.
+            <p className="section-text text-lg text-text-secondary leading-relaxed font-light">
+              Set your daily goals, log your study time, and rate how confident you feel in each subject to avoid getting too tired.
             </p>
           </div>
           <div className="section-graphic flex justify-center">
@@ -658,7 +654,7 @@ const LandingPage = () => {
       {/* Section 4: Progress Timeline */}
       <section 
         id="story-4"
-        className="story-section min-h-screen flex items-center justify-center relative overflow-hidden py-32 border-b border-white/5"
+        className="story-section min-h-[50vh] flex items-center justify-center relative overflow-hidden py-12 border-b border-border/40"
       >
         <div className="max-w-6xl mx-auto px-4 md:px-8 w-full grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           <div className="section-graphic flex justify-center lg:order-last">
@@ -666,13 +662,12 @@ const LandingPage = () => {
           </div>
           <div className="space-y-8 text-left">
             <div className="section-heading space-y-4">
-              <span className="text-sm font-bold text-[#7B4DFF] uppercase font-mono tracking-widest">Section 04 // Curriculum Path</span>
               <h2 className="text-4xl md:text-7xl font-black tracking-tight leading-tight">
                 Progress Timeline
               </h2>
             </div>
-            <p className="section-text text-lg text-white/70 leading-relaxed font-light">
-              An interactive chronological path that shows your completed syllabus chapters, review cycles, and upcoming tests so you always know what's next.
+            <p className="section-text text-lg text-text-secondary leading-relaxed font-light">
+              A simple timeline that shows the chapters you finished, when to review, and when your tests are coming up.
             </p>
           </div>
         </div>
@@ -681,18 +676,17 @@ const LandingPage = () => {
       {/* Section 5: Goal Achievement System */}
       <section 
         id="story-5"
-        className="story-section min-h-screen flex items-center justify-center relative overflow-hidden py-32 border-b border-white/5"
+        className="story-section min-h-[50vh] flex items-center justify-center relative overflow-hidden py-12 border-b border-border/40"
       >
         <div className="max-w-6xl mx-auto px-4 md:px-8 w-full grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           <div className="space-y-8 text-left">
             <div className="section-heading space-y-4">
-              <span className="text-sm font-bold text-[#00D4C7] uppercase font-mono tracking-widest">Section 05 // Habit Reward</span>
               <h2 className="text-4xl md:text-7xl font-black tracking-tight leading-tight">
                 Goal Achievement System
               </h2>
             </div>
-            <p className="section-text text-lg text-white/70 leading-relaxed font-light">
-              A gamified milestone system that rewards you with digital badges and levels as you hit your weekly study goals and maintain daily focus streaks.
+            <p className="section-text text-lg text-text-secondary leading-relaxed font-light">
+              Earn fun digital badges and level up as you complete your weekly goals and keep your daily study streak going.
             </p>
           </div>
           <div className="section-graphic flex justify-center">
@@ -704,7 +698,7 @@ const LandingPage = () => {
       {/* Section 6: AI Recommendations */}
       <section 
         id="story-6"
-        className="story-section min-h-screen flex items-center justify-center relative overflow-hidden py-32 border-b border-white/5"
+        className="story-section min-h-[50vh] flex items-center justify-center relative overflow-hidden py-12 border-b border-border/40"
       >
         <div className="max-w-6xl mx-auto px-4 md:px-8 w-full grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           <div className="section-graphic flex justify-center lg:order-last">
@@ -712,13 +706,12 @@ const LandingPage = () => {
           </div>
           <div className="space-y-8 text-left">
             <div className="section-heading space-y-4">
-              <span className="text-sm font-bold text-[#7B4DFF] uppercase font-mono tracking-widest">Section 06 // Personalized Insights</span>
               <h2 className="text-4xl md:text-7xl font-black tracking-tight leading-tight">
                 AI Recommendations
               </h2>
             </div>
-            <p className="section-text text-lg text-white/70 leading-relaxed font-light">
-              Tailored focus insights powered by Google Gemini that analyze your study history to suggest your best focus window and recommend exactly when to study each subject.
+            <p className="section-text text-lg text-text-secondary leading-relaxed font-light">
+              Smart study tips powered by Google Gemini that tell you the best times of day to study and which subjects to focus on.
             </p>
           </div>
         </div>
@@ -734,10 +727,10 @@ const LandingPage = () => {
           <div className="absolute inset-0 -z-10 bg-grid-pattern opacity-10 pointer-events-none" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-[#7B4DFF]/15 blur-[120px] rounded-full pointer-events-none" />
           
-          <h2 className="text-4xl md:text-7xl font-black text-white mb-6 tracking-tight leading-tight">
+          <h2 className="text-4xl md:text-7xl font-black text-text-primary mb-6 tracking-tight leading-tight">
             Optimize Your Study Velocity Today.
           </h2>
-          <p className="text-white/70 max-w-xl mb-12 text-base md:text-lg leading-relaxed font-light">
+          <p className="text-text-secondary max-w-xl mb-12 text-base md:text-lg leading-relaxed font-light">
             Join thousands of elite scholars calibrating their schedules, building habit consistency, and hitting core goals.
           </p>
 

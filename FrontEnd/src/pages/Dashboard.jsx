@@ -13,12 +13,18 @@ import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import GlassCard from '../components/GlassCard';
 import AICoachCard from '../components/AICoachCard';
+import { useTheme } from '../context/ThemeContext';
 import { statsAPI, sessionAPI, semesterAPI } from '../services/api';
 import { useGeminiAnalysis } from '../hooks/useGeminiAnalysis';
 
 const COLORS = ['#6EA8FE', '#5EEAD4', '#A78BFA', '#34D399', '#F472B6', '#FBBF24'];
 
 const Dashboard = ({ user }) => {
+  const { isDark } = useTheme();
+  const chartColors = isDark 
+    ? ['#6EA8FE', '#5EEAD4', '#A78BFA', '#34D399', '#F472B6', '#FBBF24']
+    : ['#4F7CFF', '#00C2A8', '#8B5CF6', '#10B981', '#EC4899', '#F59E0B'];
+
   const containerRef = useRef(null);
 
   const [overview,   setOverview]   = useState(null);
@@ -39,6 +45,7 @@ const Dashboard = ({ user }) => {
   } = useGeminiAnalysis();
 
   const fetchAll = async () => {
+    console.log('[DASHBOARD] Dashboard request started');
     setLoading(true);
     setError('');
     try {
@@ -54,9 +61,14 @@ const Dashboard = ({ user }) => {
       setPieData(subjectsRes.data.data.pieData);
       setSessions(sessionsRes.data.data.sessions);
       setSemester(semesterRes.data.data);
+      console.log('[DASHBOARD] Dashboard request completed');
     } catch (err) {
-      setError('Failed to load dashboard data. Please refresh.');
-      console.error(err);
+      const requestUrl = err.config?.url || 'unknown URL';
+      const statusCode = err.response?.status || 'unknown status';
+      const errMsg = err.response?.data?.error?.message || err.message || 'Unknown error occurred';
+
+      console.error(`[DASHBOARD] Dashboard request failed. URL: ${requestUrl}, Status: ${statusCode}, Error: ${errMsg}`);
+      setError(`Failed to load dashboard: ${errMsg}`);
     } finally {
       setLoading(false);
     }
@@ -273,8 +285,8 @@ const Dashboard = ({ user }) => {
           <GlassCard className="dashboard-stagger-card h-[400px] flex flex-col" hoverEffect={false}>
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h4 className="text-base font-bold text-white">Weekly Focus Analysis</h4>
-                <p className="text-xs text-gray-400">Total study hours per day</p>
+                <h4 className="text-base font-bold text-text-primary">Weekly Focus Analysis</h4>
+                <p className="text-xs text-text-secondary">Total study hours per day</p>
               </div>
             </div>
             <div className="flex-1 w-full text-xs">
@@ -282,15 +294,15 @@ const Dashboard = ({ user }) => {
                 <AreaChart data={weeklyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorHours" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor="#6EA8FE" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#6EA8FE" stopOpacity={0} />
+                      <stop offset="5%"  stopColor={chartColors[0]} stopOpacity={0.4} />
+                      <stop offset="95%" stopColor={chartColors[0]} stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
-                  <XAxis dataKey="name" stroke="#6b7280" />
-                  <YAxis stroke="#6b7280" />
-                  <Tooltip contentStyle={{ backgroundColor: '#070B14', borderColor: 'rgba(255,255,255,0.1)', color: '#fff', borderRadius: '8px' }} />
-                  <Area type="monotone" dataKey="hours" stroke="#6EA8FE" strokeWidth={3} fillOpacity={1} fill="url(#colorHours)" />
+                  <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "rgba(255,255,255,0.03)" : "rgba(15,23,42,0.05)"} />
+                  <XAxis dataKey="name" stroke={isDark ? "#94A3B8" : "#64748B"} />
+                  <YAxis stroke={isDark ? "#94A3B8" : "#64748B"} />
+                  <Tooltip contentStyle={{ backgroundColor: isDark ? '#162033' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#E2E8F0', color: isDark ? '#F8FAFC' : '#0F172A', borderRadius: '8px' }} />
+                  <Area type="monotone" dataKey="hours" stroke={chartColors[0]} strokeWidth={3} fillOpacity={1} fill="url(#colorHours)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -300,17 +312,17 @@ const Dashboard = ({ user }) => {
         {/* Subject Breakdown Pie Chart */}
         <GlassCard className="dashboard-stagger-card h-[400px] flex flex-col" hoverEffect={false}>
           <div className="mb-4">
-            <h4 className="text-base font-bold text-white">Subject Breakdown</h4>
-            <p className="text-xs text-gray-400">Hours per topic</p>
+            <h4 className="text-base font-bold text-text-primary">Subject Breakdown</h4>
+            <p className="text-xs text-text-secondary">Hours per topic</p>
           </div>
           <div className="flex-1 w-full flex items-center justify-center text-xs">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value">
-                  {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  {pieData.map((_, i) => <Cell key={i} fill={chartColors[i % chartColors.length]} />)}
                 </Pie>
-                <Tooltip contentStyle={{ backgroundColor: '#070B14', borderColor: 'rgba(255,255,255,0.1)', color: '#fff', borderRadius: '8px' }} />
-                <Legend layout="horizontal" verticalAlign="bottom" align="center" iconSize={8} wrapperStyle={{ paddingTop: 10, color: '#9ca3af' }} />
+                <Tooltip contentStyle={{ backgroundColor: isDark ? '#162033' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#E2E8F0', color: isDark ? '#F8FAFC' : '#0F172A', borderRadius: '8px' }} />
+                <Legend layout="horizontal" verticalAlign="bottom" align="center" iconSize={8} wrapperStyle={{ paddingTop: 10, color: isDark ? '#94A3B8' : '#64748B' }} />
               </PieChart>
             </ResponsiveContainer>
           </div>

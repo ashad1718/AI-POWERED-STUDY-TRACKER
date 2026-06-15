@@ -26,7 +26,17 @@ const protect = asyncHandler(async (req, res, next) => {
   }
 
   // 2. Verify token (throws if invalid or expired)
-  const decoded = verifyAccessToken(token);
+  let decoded;
+  try {
+    decoded = verifyAccessToken(token);
+  } catch (err) {
+    if (err.name === 'TokenExpiredError') {
+      console.warn(`[AUTH] Access token expired. Details: ${err.message}`);
+    } else {
+      console.warn(`[AUTH] Access token verification failed. Details: ${err.message}`);
+    }
+    throw err;
+  }
 
   // 3. Check user still exists (e.g. account deleted after token was issued)
   const user = await User.findById(decoded.id);
