@@ -158,7 +158,7 @@ const SemesterSetupPage = () => {
                 <p className="text-xs">No subjects added to the list yet.</p>
               </div>
             ) : (
-              <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
+              <div data-lenis-prevent className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
                 {newSubjects.map((sub, index) => (
                   <div
                     key={index}

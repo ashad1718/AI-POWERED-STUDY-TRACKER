@@ -5,7 +5,7 @@ const cors         = require('cors');
 const helmet       = require('helmet');
 const morgan       = require('morgan');
 const cookieParser = require('cookie-parser');
-const rateLimit    = require('express-rate-limit');
+const { apiLimiter, geminiLimiter } = require('./middleware/rateLimiter.middleware');
 
 const errorHandler = require('./middleware/error.middleware');
 const AppError     = require('./utils/AppError');
@@ -28,7 +28,7 @@ app.use(helmet());
 app.use(
   cors({
     origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
-    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
   })
@@ -44,39 +44,7 @@ app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 200,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    success: false,
-    error: { message: 'Too many requests. Please try again later.', code: 'RATE_LIMITED' },
-  },
-});
 
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    success: false,
-    error: { message: 'Too many auth attempts. Please try again in 15 minutes.', code: 'AUTH_RATE_LIMITED' },
-  },
-});
-
-// Gemini limiter — stricter: 5 requests per minute per IP
-const geminiLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    success: false,
-    error: { message: 'Too many AI requests. Please wait a moment.', code: 'AI_RATE_LIMITED' },
-  },
-});
 
 app.use('/api/', apiLimiter);
 
@@ -93,8 +61,8 @@ app.get('/api/health', (req, res) => {
 });
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
-app.use('/api/v1/auth',         authLimiter,   authRoutes);
-app.use('/api/auth',            authLimiter,   authRoutes);
+app.use('/api/v1/auth',                        authRoutes);
+app.use('/api/auth',                           authRoutes);
 app.use('/api/v1/users',                       userRoutes);
 app.use('/api/v1/sessions',                    sessionRoutes);
 app.use('/api/v1/stats',                       statsRoutes);

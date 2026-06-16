@@ -14,6 +14,7 @@ const RegisterPage = ({ handleLogin }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
     setError('');
     if (password.length < 6) {
       setError('Password must be at least 6 characters.');

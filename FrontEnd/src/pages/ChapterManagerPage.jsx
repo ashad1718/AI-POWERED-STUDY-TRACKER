@@ -40,9 +40,9 @@ const ChapterManagerPage = () => {
     }
   };
 
-  const fetchChapters = async (subId) => {
+  const fetchChapters = async (subId, showLoading = true) => {
     if (!subId) return;
-    setLoadingChapters(true);
+    if (showLoading) setLoadingChapters(true);
     setError('');
     try {
       const res = await chapterAPI.getAll({ subjectId: subId });
@@ -50,7 +50,7 @@ const ChapterManagerPage = () => {
     } catch (err) {
       setError(err.response?.data?.error?.message || 'Failed to fetch chapters.');
     } finally {
-      setLoadingChapters(false);
+      if (showLoading) setLoadingChapters(false);
     }
   };
 
@@ -78,7 +78,7 @@ const ChapterManagerPage = () => {
       });
       setNewChapName('');
       setIsAdding(false);
-      fetchChapters(selectedSubId);
+      fetchChapters(selectedSubId, false);
     } catch (err) {
       setError(err.response?.data?.error?.message || 'Failed to add chapter.');
     }
@@ -90,7 +90,7 @@ const ChapterManagerPage = () => {
     try {
       await chapterAPI.update(id, { name: editName.trim() });
       setEditingId(null);
-      fetchChapters(selectedSubId);
+      fetchChapters(selectedSubId, false);
     } catch (err) {
       setError(err.response?.data?.error?.message || 'Failed to update chapter.');
     }
@@ -103,13 +103,31 @@ const ChapterManagerPage = () => {
 
   const handleToggleCompleted = async (chap) => {
     setError('');
+    
+    // Optimistic UI Update
+    const previousChapters = [...chapters];
+    setChapters(prev => prev.map(c => {
+      if (c._id === chap._id) {
+        const nextCompleted = !c.completed;
+        return {
+          ...c,
+          completed: nextCompleted,
+          completedMethod: nextCompleted ? 'manual' : 'none'
+        };
+      }
+      return c;
+    }));
+
     try {
       await chapterAPI.update(chap._id, {
         completed: !chap.completed,
         completedMethod: !chap.completed ? 'manual' : 'none'
       });
-      fetchChapters(selectedSubId);
+      // Background sync without loader
+      await fetchChapters(selectedSubId, false);
     } catch (err) {
+      // Revert optimistic update on error
+      setChapters(previousChapters);
       setError(err.response?.data?.error?.message || 'Failed to toggle chapter completion.');
     }
   };
@@ -119,7 +137,7 @@ const ChapterManagerPage = () => {
     setError('');
     try {
       await chapterAPI.remove(id);
-      fetchChapters(selectedSubId);
+      fetchChapters(selectedSubId, false);
     } catch (err) {
       setError(err.response?.data?.error?.message || 'Failed to delete chapter.');
     }
@@ -320,7 +338,10 @@ const ChapterManagerPage = () => {
                   <p className="text-xs mt-1">Add a chapter using the button in the top right.</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div 
+                  data-lenis-prevent 
+                  className="space-y-3 max-h-[460px] overflow-y-auto pr-2 custom-scrollbar-chat"
+                >
                   {chapters.map((chap, index) => {
                     const isEditing = editingId === chap._id;
 

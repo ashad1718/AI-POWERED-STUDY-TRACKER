@@ -318,3 +318,166 @@ html.lenis, html.lenis body {
 .floating-element-2 { animation: floatSlow 10s infinite ease-in-out 1.5s; }
 .floating-element-3 { animation: floatSlow 7s infinite ease-in-out 3s; }
 .floating-element-4 { animation: floatSlow 9s infinite ease-in-out 0.5s; }
+
+/* ─── Light Mode Theme Visibility Overrides ────────────────────────────────────── */
+html.light, :root:not(.dark) {
+  /* Override hardcoded dark-mode background colors in cards and panels */
+  .bg-\[\#0F172A\]\/40,
+  .bg-\[\#0F172A\]\/50,
+  .bg-\[\#070B14\]\/50,
+  .bg-\[\#070B14\]\/55,
+  .bg-\[\#070B14\]\/30,
+  .bg-\#0F172A,
+  .bg-\#070B14,
+  .bg-\[\#162033\],
+  .bg-\[\#162033\]\/40 {
+    background-color: var(--color-glass) !important;
+    border-color: var(--color-glass-border) !important;
+  }
+
+  /* Override hardcoded text colors to use theme-aware color-text-primary */
+  .text-white,
+  .text-white\/90,
+  .text-white\/80,
+  .text-white\/70,
+  .text-gray-100,
+  .text-gray-200,
+  .text-gray-300,
+  .text-gray-400 {
+    color: var(--color-text-primary) !important;
+  }
+
+  /* Override lighter text colors to use theme-aware color-text-secondary */
+  .text-gray-500,
+  .text-white\/40,
+  .text-white\/30 {
+    color: var(--color-text-secondary) !important;
+  }
+
+  /* Global input placeholder text overrides */
+  input::placeholder,
+  textarea::placeholder,
+  .placeholder-white\/30::placeholder {
+    color: var(--color-text-secondary) !important;
+  }
+
+  /* Ensure text inside input and form elements is dark and legible */
+  input, select, textarea {
+    color: var(--color-text-primary) !important;
+    background-color: var(--color-surface) !important;
+    border-color: var(--color-border) !important;
+  }
+
+  /* Fix custom primary text gradient showing white */
+  .text-gradient-primary {
+    background: linear-gradient(135deg, var(--color-text-primary) 20%, #8D61FF 60%, #5B2EFF 100%) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+  }
+
+  /* User Chat Bubble: Change dark background to soft blue block with dark text */
+  .bg-gradient-to-br.from-\[\#162033\].to-\[\#0F172A\] {
+    background: rgba(79, 124, 255, 0.1) !important;
+    border-color: rgba(79, 124, 255, 0.2) !important;
+  }
+  .bg-gradient-to-br.from-\[\#162033\].to-\[\#0F172A\] * {
+    color: var(--color-text-primary) !important;
+  }
+
+  /* EXCLUSIONS: Buttons and status badges that must preserve white text */
+  .btn-primary,
+  .btn-primary *,
+  button[type="submit"],
+  button[type="submit"] *,
+  .bg-primary,
+  .bg-primary *,
+  .bg-secondary,
+  .bg-secondary *,
+  .bg-red-500,
+  .bg-red-500 *,
+  .bg-green-500,
+  .bg-green-500 *,
+  .bg-amber-500,
+  .bg-amber-500 *,
+  .bg-purple-500,
+  .bg-purple-500 *,
+  .bg-teal-500,
+  .bg-teal-500 * {
+    color: #FFFFFF !important;
+  }
+
+  /* SVG icon override inside buttons */
+  .btn-primary svg,
+  button[type="submit"] svg {
+    stroke: #FFFFFF !important;
+  }
+
+  /* SVGs/icons within light elements should adapt to their text color */
+  .text-gray-500 svg,
+  .text-white\/30 svg {
+    color: var(--color-text-secondary) !important;
+    stroke: var(--color-text-secondary) !important;
+  }
+}
+
+/* Custom Scrollbar for Chat Window */
+.custom-scrollbar-chat {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.3s ease;
+}
+
+.custom-scrollbar-chat:hover {
+  scrollbar-color: #4F7CFF #131A2A;
+}
+
+html.light .custom-scrollbar-chat:hover,
+:root:not(.dark) .custom-scrollbar-chat:hover {
+  scrollbar-color: rgba(79, 124, 255, 0.4) rgba(0, 0, 0, 0.05);
+}
+
+/* Webkit styles */
+.custom-scrollbar-chat::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar-chat::-webkit-scrollbar-track {
+  background: #131A2A;
+  border-radius: 9999px;
+}
+
+.custom-scrollbar-chat::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 9999px;
+  transition: background-color 0.25s ease;
+}
+
+.custom-scrollbar-chat:hover::-webkit-scrollbar-thumb {
+  background: #4F7CFF;
+}
+
+.custom-scrollbar-chat:hover::-webkit-scrollbar-thumb:hover {
+  background: #00C2A8;
+}
+
+/* Light mode overrides for track and thumb */
+html.light .custom-scrollbar-chat::-webkit-scrollbar-track,
+:root:not(.dark) .custom-scrollbar-chat::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+html.light .custom-scrollbar-chat::-webkit-scrollbar-thumb,
+:root:not(.dark) .custom-scrollbar-chat::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
+html.light .custom-scrollbar-chat:hover::-webkit-scrollbar-thumb,
+:root:not(.dark) .custom-scrollbar-chat:hover::-webkit-scrollbar-thumb {
+  background: rgba(79, 124, 255, 0.4);
+}
+
+html.light .custom-scrollbar-chat:hover::-webkit-scrollbar-thumb:hover,
+:root:not(.dark) .custom-scrollbar-chat:hover::-webkit-scrollbar-thumb:hover {
+  background: #00C2A8;
+}

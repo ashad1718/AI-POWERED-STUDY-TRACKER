@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Send, Sparkles, AlertCircle, Bot, User, Trash2,
-  Brain, HelpCircle, ArrowRight, BookOpen
+  Brain, HelpCircle, ArrowRight, BookOpen, ArrowDown
 } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
@@ -14,6 +14,9 @@ import GlassCard from '../components/GlassCard';
 const AICoachPage = ({ user }) => {
   const containerRef = useRef(null);
   const chatEndRef = useRef(null);
+  const scrollContainerRef = useRef(null);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [hasUnread, setHasUnread] = useState(false);
 
   // Gemini Analysis Hook for left panel
   const {
@@ -53,10 +56,47 @@ const AICoachPage = ({ user }) => {
     }
   }, [hasAnalysed, analyze]);
 
-  // Scroll to bottom of chat
+  // Scroll to bottom helper
+  const scrollToBottom = (behavior = 'smooth') => {
+    chatEndRef.current?.scrollIntoView({ behavior });
+  };
+
+  // Scroll to bottom instantly on mount
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, chatLoading]);
+    setTimeout(() => scrollToBottom('auto'), 100);
+  }, []);
+
+  // Handle message updates and smart auto-scrolling
+  useEffect(() => {
+    if (!scrollContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+    
+    // Check if user is scrolled near the bottom (within 200px)
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 200;
+
+    if (isNearBottom) {
+      setTimeout(() => scrollToBottom('smooth'), 50);
+      setHasUnread(false);
+    } else {
+      // User is scrolled up, mark unread messages
+      setHasUnread(true);
+    }
+  }, [messages]);
+
+  // Handle scroll events to show/hide the scroll-to-bottom button
+  const handleScroll = () => {
+    if (!scrollContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+    
+    // Show button if scrolled up by more than 150px
+    const isScrolledUp = scrollHeight - scrollTop - clientHeight > 150;
+    setShowScrollBtn(isScrolledUp);
+
+    // If user scrolled back to bottom, clear unread status
+    if (!isScrolledUp) {
+      setHasUnread(false);
+    }
+  };
 
   // GSAP entrance animation
   useGSAP(() => {
@@ -82,6 +122,7 @@ const AICoachPage = ({ user }) => {
     };
     setMessages(prev => [...prev, userMsg]);
     setChatLoading(true);
+    setTimeout(() => scrollToBottom('smooth'), 50);
 
     try {
       const res = await geminiAPI.chat(text.trim());
@@ -168,7 +209,11 @@ const AICoachPage = ({ user }) => {
         <div className="lg:col-span-7 flex flex-col h-[680px] relative ai-coach-stagger">
           <div className="absolute inset-0 bg-[#5EEAD4]/5 blur-3xl pointer-events-none rounded-2xl" />
           
-          <GlassCard className="flex flex-col h-full border-white/10 bg-[#0F172A]/40 relative z-10 p-0 overflow-hidden" hoverEffect={false}>
+          <GlassCard 
+            className="h-full border-white/10 bg-[#0F172A]/40 relative z-10 p-0 overflow-hidden" 
+            contentClassName="flex flex-col h-full"
+            hoverEffect={false}
+          >
             
             {/* Chat Header */}
             <div className="px-6 py-4 border-b border-white/10 flex justify-between items-center bg-[#070B14]/55">
@@ -192,15 +237,20 @@ const AICoachPage = ({ user }) => {
             </div>
 
             {/* Chat Messages Log */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+            <div 
+              ref={scrollContainerRef}
+              onScroll={handleScroll}
+              data-lenis-prevent
+              className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar-chat scroll-smooth"
+            >
               <AnimatePresence initial={false}>
                 {messages.map((msg) => (
                   <motion.div
                     key={msg.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0, y: 15, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3 }}
+                    transition={{ duration: 0.35, ease: 'easeOut' }}
                     className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div className={`flex items-start gap-3.5 max-w-[85%] ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -265,6 +315,29 @@ const AICoachPage = ({ user }) => {
 
               <div ref={chatEndRef} />
             </div>
+
+            {/* Floating Scroll to Bottom Button */}
+            <AnimatePresence>
+              {showScrollBtn && (
+                <motion.button
+                  key="scroll-bottom-btn"
+                  initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.9 }}
+                  onClick={() => scrollToBottom('smooth')}
+                  className="absolute bottom-36 right-6 px-4 py-2.5 rounded-full bg-gradient-to-tr from-[#6EA8FE] to-[#5EEAD4] text-[#070B14] shadow-xl hover:shadow-[0_0_20px_rgba(94,234,212,0.45)] hover:scale-105 transition-all z-20 flex items-center gap-2 text-xs font-bold border border-white/20 cursor-pointer"
+                >
+                  <ArrowDown className="w-4 h-4" />
+                  <span>{hasUnread ? "New Message Below" : "Scroll to bottom"}</span>
+                  {hasUnread && (
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                    </span>
+                  )}
+                </motion.button>
+              )}
+            </AnimatePresence>
 
             {/* Quick Suggestions list */}
             <div className="px-6 py-4 border-t border-white/10 bg-[#070B14]/30">

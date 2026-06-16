@@ -1,6 +1,6 @@
 import React from 'react';
 
-const GlassCard = ({ children, className = '', hoverEffect = true }) => {
+const GlassCard = ({ children, className = '', hoverEffect = true, contentClassName = '' }) => {
   return (
     <div 
       className={`glass-card rounded-2xl p-6 md:p-8 relative overflow-hidden ${
@@ -11,7 +11,7 @@ const GlassCard = ({ children, className = '', hoverEffect = true }) => {
       <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
       
       {/* Card Content */}
-      <div className="relative z-10">
+      <div className={`relative z-10 ${contentClassName}`}>
         {children}
       </div>
     </div>

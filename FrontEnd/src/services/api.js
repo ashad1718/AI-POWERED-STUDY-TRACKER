@@ -63,12 +63,14 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Only attempt refresh on 401, and not on the refresh endpoint itself
+    // Only attempt refresh on 401, and not on the refresh, login, register, or logout endpoints
     if (
       error.response?.status === 401 &&
       !originalRequest._retry &&
       !originalRequest.url.includes('/auth/refresh') &&
-      !originalRequest.url.includes('/auth/login')
+      !originalRequest.url.includes('/auth/login') &&
+      !originalRequest.url.includes('/auth/register') &&
+      !originalRequest.url.includes('/auth/logout')
     ) {
       originalRequest._retry = true;
       console.warn(`[AUTH] Token expired (401 Unauthorized) on request: ${originalRequest.url}. Retrying with refreshed token...`);
