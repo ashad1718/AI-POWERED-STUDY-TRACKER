@@ -39,13 +39,38 @@ const sendTokenResponse = (user, statusCode, res) => {
 exports.register = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
 
+  if (!email || !password || !name) {
+    throw new AppError('Please provide name, email, and password.', 400, 'MISSING_FIELDS');
+  }
+
+  const normalizedEmail = email.toLowerCase().trim();
+
   // Check if email already in use
-  const existing = await User.findOne({ email: email.toLowerCase() });
+  let existing;
+  try {
+    existing = await User.findOne({ email: normalizedEmail });
+  } catch (dbErr) {
+    console.error(`[REGISTER] Database failure during email lookup: ${dbErr.message}`);
+    throw new AppError('Database failure. Please try again.', 500, 'DATABASE_FAILURE');
+  }
+
   if (existing) {
+    console.warn(`[REGISTER] Registration failed: email already in use: ${normalizedEmail}`);
     throw new AppError('An account with this email already exists.', 409, 'DUPLICATE_EMAIL');
   }
 
-  const user = await User.create({ name, email, password });
+  let user;
+  try {
+    user = await User.create({ name, email: normalizedEmail, password });
+  } catch (dbErr) {
+    console.error(`[REGISTER] Database failure during user creation: ${dbErr.message}`);
+    throw new AppError('Database failure saving user. Please try again.', 500, 'DATABASE_FAILURE');
+  }
+
+  console.log(`[REGISTER] User created`);
+  console.log(`[REGISTER] Email saved: ${user.email}`);
+  console.log(`[REGISTER] User ID: ${user._id}`);
+
   sendTokenResponse(user, 201, res);
 });
 
@@ -57,9 +82,36 @@ exports.login = asyncHandler(async (req, res) => {
     throw new AppError('Please provide email and password.', 400, 'MISSING_CREDENTIALS');
   }
 
-  // Include password field (excluded by default via select: false in schema)
-  const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
-  if (!user || !(await user.comparePassword(password))) {
+  const normalizedEmail = email.toLowerCase().trim();
+  console.log(`[LOGIN] Email received: ${normalizedEmail}`);
+
+  let user;
+  try {
+    user = await User.findOne({ email: normalizedEmail }).select('+password');
+  } catch (dbErr) {
+    console.error(`[LOGIN] Database failure during user search: ${dbErr.message}`);
+    throw new AppError('Database lookup failed. Please try again.', 500, 'DATABASE_FAILURE');
+  }
+
+  if (!user) {
+    console.warn(`[LOGIN] Login failed: User not found for email: ${normalizedEmail}`);
+    throw new AppError('Incorrect email or password.', 401, 'INVALID_CREDENTIALS');
+  }
+
+  console.log(`[LOGIN] User found: ${user.email} (ID: ${user._id})`);
+
+  let isMatch = false;
+  try {
+    isMatch = await user.comparePassword(password);
+  } catch (err) {
+    console.error(`[LOGIN] Error comparing passwords: ${err.message}`);
+    throw new AppError('Error verifying credentials. Please try again.', 500, 'CRYPTO_ERROR');
+  }
+
+  console.log(`[LOGIN] Password match result: ${isMatch}`);
+
+  if (!isMatch) {
+    console.warn(`[LOGIN] Login failed: Password mismatch for user: ${normalizedEmail}`);
     throw new AppError('Incorrect email or password.', 401, 'INVALID_CREDENTIALS');
   }
 

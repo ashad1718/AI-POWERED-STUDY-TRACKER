@@ -14,7 +14,7 @@ const connectDB = async () => {
     try {
       // Try to connect to primary MongoDB with a short timeout to fail quickly if down
       const conn = await mongoose.connect(mongoUri, {
-        serverSelectionTimeoutMS: 2000,
+        serverSelectionTimeoutMS: 10000,
       });
       console.log(`✅ MongoDB connected: ${conn.connection.host}`);
     } catch (err) {
