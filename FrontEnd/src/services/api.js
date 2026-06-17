@@ -7,6 +7,8 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+console.log('[API] Active VITE_API_URL / Axios Base URL:', api.defaults.baseURL);
+
 // ─── Request Interceptor: attach access token ─────────────────────────────────
 api.interceptors.request.use(
   (config) => {
@@ -94,6 +96,10 @@ export const authAPI = {
   login:    (data)   => api.post('/auth/login',    data),
   logout:   ()       => api.post('/auth/logout'),
   refresh:  ()       => api.post('/auth/refresh'),
+  forgotPassword: (data) => api.post('/auth/forgot-password', data),
+  verifyOtp:      (data) => api.post('/auth/verify-otp', data),
+  resendOtp:      (data) => api.post('/auth/resend-otp', data),
+  resetPassword:  (data) => api.post('/auth/reset-password', data),
 };
 
 // ─── User API calls ───────────────────────────────────────────────────────────

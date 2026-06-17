@@ -22,6 +22,9 @@ import AICoachPage      from './pages/AICoachPage';
 import SubjectManagerPage from './pages/SubjectManagerPage';
 import ChapterManagerPage from './pages/ChapterManagerPage';
 import SemesterSetupPage  from './pages/SemesterSetupPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import VerifyOTPPage      from './pages/VerifyOTPPage';
+import ResetPasswordPage  from './pages/ResetPasswordPage';
 
 import { useAuth }      from './hooks/useAuth';
 import { userAPI, refreshAccessToken } from './services/api';
@@ -180,6 +183,9 @@ const AppContent = () => {
               <Route path="/" element={<LandingPage />} />
               <Route path="/login"    element={<PublicRoute><LoginPage    handleLogin={login}    /></PublicRoute>} />
               <Route path="/register" element={<PublicRoute><RegisterPage handleLogin={register} /></PublicRoute>} />
+              <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
+              <Route path="/verify-otp"      element={<PublicRoute><VerifyOTPPage /></PublicRoute>} />
+              <Route path="/reset-password"  element={<PublicRoute><ResetPasswordPage /></PublicRoute>} />
               
               {/* Private Dashboard/App Routes */}
               <Route path="/dashboard"    element={<PrivateRoute><Dashboard        user={user} /></PrivateRoute>} />

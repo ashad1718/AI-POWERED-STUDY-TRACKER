@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Brain, Mail, Lock, ArrowRight, ArrowLeft, AlertCircle } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
+import PasswordInput from '../components/PasswordInput';
 
 const LoginPage = ({ handleLogin }) => {
   const [email,    setEmail]    = useState('');
@@ -90,20 +91,17 @@ const LoginPage = ({ handleLogin }) => {
 
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider block">Password</label>
-                <a href="#" className="text-xs text-[#00E5FF] hover:underline">Forgot password?</a>
+                <label htmlFor="password" className="text-xs font-semibold text-text-secondary uppercase tracking-wider block">Password</label>
+                <Link to="/forgot-password" className="text-xs text-[#00E5FF] hover:underline">Forgot password?</Link>
               </div>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
-                  <Lock className="w-4 h-4" />
-                </div>
-                <input
-                  type="password" required value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="glass-input w-full pl-10 pr-4 py-3 text-sm rounded-xl focus:outline-none"
-                  placeholder="••••••••"
-                />
-              </div>
+              <PasswordInput
+                id="password"
+                name="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                placeholder="••••••••"
+              />
             </div>
 
             <button

@@ -3,6 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Brain, User, Mail, Lock, ArrowRight, ArrowLeft, AlertCircle } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
+import PasswordInput from '../components/PasswordInput';
+import PasswordStrengthMeter from '../components/PasswordStrengthMeter';
+import { isStrongPassword } from '../utils/passwordUtils';
 
 const RegisterPage = ({ handleLogin }) => {
   const [name,     setName]     = useState('');
@@ -16,8 +19,8 @@ const RegisterPage = ({ handleLogin }) => {
     e.preventDefault();
     if (loading) return;
     setError('');
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+    if (!isStrongPassword(password)) {
+      setError('Please choose a stronger password that meets all requirements.');
       return;
     }
     setLoading(true);
@@ -93,18 +96,21 @@ const RegisterPage = ({ handleLogin }) => {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider block">Password</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
-                  <Lock className="w-4 h-4" />
-                </div>
-                <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
-                  className="glass-input w-full pl-10 pr-4 py-3 text-sm rounded-xl focus:outline-none"
-                  placeholder="Minimum 6 characters"
-                />
+            <PasswordInput
+              id="password"
+              name="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Choose a strong password"
+              label="Password"
+              autoComplete="new-password"
+            />
+
+            {password && (
+              <div className="anim-item">
+                <PasswordStrengthMeter password={password} />
               </div>
-            </div>
+            )}
 
             <p className="text-[10px] text-text-secondary leading-normal">
               By registering, you agree to our Terms of Service and Privacy Policy.

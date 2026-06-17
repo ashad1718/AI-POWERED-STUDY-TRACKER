@@ -37,7 +37,7 @@ const InsightSection = ({ icon: Icon, title, items, color, delay = 0 }) => (
 const LoadingSkeleton = () => (
   <div className="space-y-6 animate-pulse">
     <div className="text-center space-y-2">
-      <div className="text-sm text-[#5EEAD4] font-medium">Analyzing your study and syllabus habits...</div>
+      <div className="text-sm text-[#5EEAD4] font-medium">Analyzing your progress...</div>
       <div className="flex justify-center">
         <div className="w-6 h-6 border-2 border-[#5EEAD4] border-t-transparent rounded-full animate-spin" />
       </div>

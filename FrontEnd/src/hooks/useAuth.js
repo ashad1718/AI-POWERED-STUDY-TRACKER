@@ -11,6 +11,7 @@ import { authAPI } from '../services/api';
 export const useAuth = (setIsLoggedIn, setUser) => {
 
   const login = useCallback(async (email, password) => {
+    console.log('[AUTH] Sending payload:', { email, password });
     const { data } = await authAPI.login({ email, password });
     const { user, accessToken } = data.data;
 

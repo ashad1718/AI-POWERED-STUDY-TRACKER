@@ -6,15 +6,24 @@ const { GoogleGenAI } = require('@google/genai');
 // INITIALISATION
 // Key is read once at startup — if missing, requests fail with a clear message.
 // ─────────────────────────────────────────────────────────────────────────────
-const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash';
+const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
 const DEFAULT_GEMINI_API_VERSION = 'v1';
 const FALLBACK_MODELS = [
-  DEFAULT_GEMINI_MODEL,
-  'gemini-flash-latest',
-  'gemini-3-flash',
   'gemini-2.5-flash',
-  'gemini-2.5-flash-lite',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
 ];
+
+const getModelsToTry = () => {
+  const primary = normalizeModelName(process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL);
+  const candidates = [
+    primary,
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash'
+  ];
+  return [...new Set(candidates)];
+};
 
 let ai = null;
 let configuredModel = DEFAULT_GEMINI_MODEL;
@@ -60,20 +69,62 @@ const initGemini = () => {
   return true;
 };
 
+const isRetriableError = (err) => {
+  if (!err) return false;
+  const message = (err.message || '').toUpperCase();
+  const status = err.status || err.statusCode;
+  return (
+    status === 429 ||
+    status === 503 ||
+    message.includes('429') ||
+    message.includes('503') ||
+    message.includes('UNAVAILABLE') ||
+    message.includes('BUSY') ||
+    message.includes('DEMAND') ||
+    message.includes('QUOTA') ||
+    message.includes('TIMEOUT') ||
+    message.includes('OVERLOADED')
+  );
+};
+
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const callWithTimeout = (promise, ms) => {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      const err = new Error('UNAVAILABLE_TIMEOUT');
+      err.status = 503;
+      reject(err);
+    }, ms);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId));
+};
+
 const cleanGeminiError = (err) => {
   const message = err?.message || 'Gemini API error';
 
   if (message.includes('API_KEY_INVALID') || message.includes('API key not valid')) {
     return new Error('Invalid Gemini API key. Check your GEMINI_API_KEY environment variable.');
   }
-  if (message.includes('QUOTA_EXCEEDED') || message.includes('429')) {
-    return new Error('Gemini API quota exceeded. Please try again later.');
+  if (
+    message.includes('QUOTA_EXCEEDED') ||
+    message.includes('429') ||
+    message.includes('503') ||
+    message.includes('UNAVAILABLE') ||
+    message.includes('busy') ||
+    message.includes('demand') ||
+    message.includes('timeout') ||
+    message.includes('TIMEOUT') ||
+    message.includes('overload')
+  ) {
+    return new Error('AI Coach is temporarily busy. Please try again in a moment.');
   }
   if (message.includes('not found') || message.includes('404')) {
     return new Error(`Gemini model not found: ${message}`);
   }
 
-  return new Error(`Gemini request failed: ${message}`);
+  return new Error('AI Coach is temporarily busy. Please try again in a moment.');
 };
 
 const getAvailableGeminiModels = async ({ refresh = false } = {}) => {
@@ -139,61 +190,70 @@ const isModelNotFoundError = (err) => {
   return message.includes('not found') || message.includes('404') || message.includes('NOT_FOUND');
 };
 
-const callGeminiGenerateContent = async ({ contents, config = {}, retryFallback = true }) => {
+const generateGeminiText = async ({ contents, config = {} }) => {
   const client = ensureGeminiClient();
-  if (!lastModelValidation) {
-    await resolveGeminiModel();
-  }
+  const modelsToTry = getModelsToTry();
+  let lastError = null;
 
-  const requestConfig = {
-    temperature:      0.7,
-    topP:             0.9,
-    topK:             40,
-    maxOutputTokens:  1024,
-    ...config,
-  };
+  for (let m = 0; m < modelsToTry.length; m++) {
+    const model = modelsToTry[m];
+    let retries = 0;
+    const maxRetries = 3;
+    const backoffSchedule = [1000, 2000, 4000];
 
-  console.log(`[GEMINI] Request model=${activeModel} apiVersion=${apiVersion}`);
+    while (retries <= maxRetries) {
+      const startTime = Date.now();
+      try {
+        console.log(`[GEMINI] Request model=${model} apiVersion=${apiVersion} (Attempt ${retries + 1}/${maxRetries + 1})`);
+        
+        const requestConfig = {
+          temperature:      0.7,
+          topP:             0.9,
+          topK:             40,
+          maxOutputTokens:  1024,
+          ...config,
+        };
 
-  try {
-    const response = await client.models.generateContent({
-      model: activeModel,
-      contents,
-      config: requestConfig,
-    });
+        const responsePromise = client.models.generateContent({
+          model,
+          contents,
+          config: requestConfig,
+        });
 
-    console.log('[GEMINI] Response received', {
-      model: activeModel,
-      apiVersion,
-      finishReason: response.candidates?.[0]?.finishReason,
-      textLength: response.text?.length || 0,
-    });
+        const response = await callWithTimeout(responsePromise, 30000);
+        const duration = Date.now() - startTime;
 
-    return response;
-  } catch (err) {
-    console.error('[GEMINI ERROR]', {
-      model: activeModel,
-      apiVersion,
-      message: err.message,
-    });
+        console.log(`[GEMINI LOG] Model: ${model}, Retry Count: ${retries}, Response Time: ${duration}ms`);
 
-    if (retryFallback && isModelNotFoundError(err)) {
-      await resolveGeminiModel({ refresh: true });
-      return callGeminiGenerateContent({ contents, config, retryFallback: false });
+        activeModel = model;
+
+        return {
+          text: (response.text || '').trim(),
+          response,
+          model,
+          apiVersion,
+        };
+      } catch (err) {
+        const duration = Date.now() - startTime;
+        const failureReason = err.message || 'Unknown error';
+        
+        console.warn(`[GEMINI FAIL] Model: ${model}, Retry Count: ${retries}, Response Time: ${duration}ms, Failure Reason: ${failureReason}`);
+
+        lastError = err;
+
+        if (isRetriableError(err) && retries < maxRetries) {
+          const waitTime = backoffSchedule[retries];
+          console.log(`[GEMINI] Retriable error detected. Waiting ${waitTime}ms before retry...`);
+          await delay(waitTime);
+          retries++;
+        } else {
+          break;
+        }
+      }
     }
-
-    throw cleanGeminiError(err);
   }
-};
 
-const generateGeminiText = async ({ contents, config }) => {
-  const response = await callGeminiGenerateContent({ contents, config });
-  return {
-    text: (response.text || '').trim(),
-    response,
-    model: activeModel,
-    apiVersion,
-  };
+  throw cleanGeminiError(lastError);
 };
 
 const testGeminiConnectivity = async () => {

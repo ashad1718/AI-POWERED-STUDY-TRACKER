@@ -34,6 +34,13 @@ const VerifyOTPPage = () => {
     return () => window.clearInterval(timer);
   }, [countdown]);
 
+  useEffect(() => {
+    // Auto focus first input on mount
+    setTimeout(() => {
+      focusInput(0);
+    }, 100);
+  }, []);
+
   const focusInput = (index) => {
     inputRefs.current[index]?.focus();
     inputRefs.current[index]?.select();
