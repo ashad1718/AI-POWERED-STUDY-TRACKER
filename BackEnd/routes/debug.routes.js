@@ -21,17 +21,16 @@ router.use((req, res, next) => {
 // GET /api/debug/users
 router.get('/users', async (req, res, next) => {
   try {
-    const count = await User.countDocuments();
-    const users = await User.find({}, 'email name createdAt').lean();
+    const mongoose = require('mongoose');
+    const userCount = await User.countDocuments();
+    const users = await User.find({}, 'email').lean();
     res.status(200).json({
       success: true,
       data: {
-        count,
-        users: users.map(u => ({
-          name: u.name,
-          email: u.email,
-          createdAt: u.createdAt
-        }))
+        databaseName: mongoose.connection.name,
+        collectionName: User.collection.name,
+        userCount,
+        registeredEmails: users.map(u => u.email)
       }
     });
   } catch (err) {
@@ -144,6 +143,52 @@ router.post('/test-login', async (req, res, next) => {
         passwordMatch: true,
         jwtGenerated: true,
         accessToken
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/debug/auth-status
+router.get('/auth-status', async (req, res, next) => {
+  try {
+    const mongoose = require('mongoose');
+    const User = require('../models/User');
+
+    let loggedInUser = null;
+    let authStatus = 'Not logged in';
+
+    let token;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+
+    if (token) {
+      const { verifyAccessToken } = require('../config/jwt');
+      try {
+        const decoded = verifyAccessToken(token);
+        const user = await User.findById(decoded.id);
+        if (user) {
+          loggedInUser = user.toPublicJSON();
+          authStatus = 'Authenticated';
+        } else {
+          authStatus = 'Token valid but user not found';
+        }
+      } catch (err) {
+        authStatus = `Token validation failed: ${err.message}`;
+      }
+    }
+
+    const userCount = await User.countDocuments();
+    res.status(200).json({
+      success: true,
+      data: {
+        databaseName: mongoose.connection.name,
+        collectionName: User.collection.name,
+        userCount,
+        loggedInUser,
+        authStatus,
       }
     });
   } catch (err) {

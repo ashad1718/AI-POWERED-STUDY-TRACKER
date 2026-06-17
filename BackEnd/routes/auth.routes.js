@@ -10,6 +10,7 @@ router.post('/register', authLimiter, logAuthRateLimit, controller.register);
 router.post('/login',    authLimiter, logAuthRateLimit, controller.login);
 router.post('/logout',   protect, controller.logout);
 router.post('/refresh',  controller.refresh);
+router.get('/me',        protect, controller.getMe);
 
 router.post('/forgot-password', authLimiter, logAuthRateLimit, controller.forgotPassword);
 router.post('/verify-otp',      authLimiter, logAuthRateLimit, controller.verifyOtp);

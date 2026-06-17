@@ -112,6 +112,7 @@ const ChapterManagerPage = () => {
         return {
           ...c,
           completed: nextCompleted,
+          status: nextCompleted ? 'completed' : (c.sessionCount > 0 ? 'in_progress' : 'not_started'),
           completedMethod: nextCompleted ? 'manual' : 'none'
         };
       }
@@ -349,8 +350,10 @@ const ChapterManagerPage = () => {
                       <div
                         key={chap._id}
                         className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${
-                          chap.completed
-                            ? 'bg-[#5EEAD4]/5 border-[#5EEAD4]/20'
+                          chap.status === 'completed'
+                            ? 'bg-green-500/5 border-green-500/20'
+                            : chap.status === 'in_progress'
+                            ? 'bg-yellow-500/5 border-yellow-500/20 hover:border-yellow-500/30'
                             : 'bg-[#0F172A]/40 border-white/5 hover:border-white/10'
                         }`}
                       >
@@ -360,8 +363,8 @@ const ChapterManagerPage = () => {
                             onClick={() => handleToggleCompleted(chap)}
                             className={`w-6 h-6 rounded-md border flex items-center justify-center shrink-0 transition-all ${
                               chap.completed
-                                ? 'bg-[#5EEAD4] border-[#5EEAD4] text-[#070B14]'
-                                : 'border-white/20 hover:border-[#5EEAD4] text-transparent'
+                                ? 'bg-green-500 border-green-500 text-[#070B14]'
+                                : 'border-white/20 hover:border-green-500 text-transparent'
                             }`}
                           >
                             <Check className="w-4 h-4" />
@@ -396,12 +399,30 @@ const ChapterManagerPage = () => {
                               autoFocus
                             />
                           ) : (
-                            <div className="truncate">
-                              <p className={`text-sm font-semibold truncate ${chap.completed ? 'text-gray-300 line-through' : 'text-white'}`}>
-                                {chap.name}
-                              </p>
+                            <div className="truncate space-y-1">
+                              <div className="flex items-center gap-2">
+                                <p className={`text-sm font-semibold truncate ${chap.completed ? 'text-gray-400 line-through' : 'text-white'}`}>
+                                  {chap.name}
+                                </p>
+                                {/* Badges */}
+                                {chap.status === 'completed' && (
+                                  <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-green-500/20 text-green-300 border border-green-500/35">
+                                    COMPLETED
+                                  </span>
+                                )}
+                                {chap.status === 'in_progress' && (
+                                  <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-yellow-500/20 text-yellow-300 border border-yellow-500/35">
+                                    IN PROGRESS
+                                  </span>
+                                )}
+                                {chap.status === 'not_started' && (
+                                  <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-slate-500/15 text-slate-400 border border-slate-500/20">
+                                    NOT STARTED
+                                  </span>
+                                )}
+                              </div>
                               {chap.completed && (
-                                <p className="text-[10px] text-[#5EEAD4] font-medium mt-0.5">
+                                <p className="text-[10px] text-green-400 font-medium mt-0.5">
                                   ✓ Completed {chap.completedMethod === 'auto' ? '(Auto-logged)' : '(Manual)'}
                                 </p>
                               )}

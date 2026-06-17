@@ -27,7 +27,7 @@ exports.getSubjects = asyncHandler(async (req, res) => {
 
 // ─── POST /api/v1/subjects ────────────────────────────────────────────────────
 exports.createSubject = asyncHandler(async (req, res) => {
-  const { name, completionThreshold, active, order } = req.body;
+  const { name, completionThreshold, completionRule, active, order } = req.body;
 
   if (!name || !name.trim()) {
     throw new AppError('Subject name is required.', 400);
@@ -37,6 +37,7 @@ exports.createSubject = asyncHandler(async (req, res) => {
     userId: req.user.id,
     name: name.trim(),
     completionThreshold,
+    completionRule,
     active: active !== undefined ? active : true,
     order: order || 0,
   });
@@ -56,12 +57,13 @@ exports.updateSubject = asyncHandler(async (req, res) => {
     throw new AppError('You do not have permission to modify this subject.', 403, 'FORBIDDEN');
   }
 
-  const { name, active, isArchived, completionThreshold, order } = req.body;
+  const { name, active, isArchived, completionThreshold, completionRule, order } = req.body;
 
   if (name !== undefined) subject.name = name.trim();
   if (active !== undefined) subject.active = active;
   if (isArchived !== undefined) subject.isArchived = isArchived;
   if (completionThreshold !== undefined) subject.completionThreshold = completionThreshold;
+  if (completionRule !== undefined) subject.completionRule = completionRule;
   if (order !== undefined) subject.order = order;
 
   await subject.save();

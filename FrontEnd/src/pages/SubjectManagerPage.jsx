@@ -16,6 +16,7 @@ const SubjectManagerPage = () => {
   const [newSubName, setNewSubName] = useState('');
   const [newSubSessions, setNewSubSessions] = useState('3');
   const [newSubHours, setNewSubHours] = useState('5');
+  const [newSubRule, setNewSubRule] = useState('first_session');
   const [isAdding, setIsAdding] = useState(false);
 
   // Editing State
@@ -23,6 +24,7 @@ const SubjectManagerPage = () => {
   const [editName, setEditName] = useState('');
   const [editSessions, setEditSessions] = useState('3');
   const [editHours, setEditHours] = useState('5');
+  const [editRule, setEditRule] = useState('first_session');
 
   const fetchSubjects = async () => {
     setLoading(true);
@@ -51,7 +53,8 @@ const SubjectManagerPage = () => {
         completionThreshold: {
           sessions: parseInt(newSubSessions, 10) || 3,
           hours: parseFloat(newSubHours) || 5,
-        }
+        },
+        completionRule: newSubRule
       });
       setNewSubName('');
       setNewSubSessions('3');
@@ -72,7 +75,8 @@ const SubjectManagerPage = () => {
         completionThreshold: {
           sessions: parseInt(editSessions, 10) || 3,
           hours: parseFloat(editHours) || 5,
-        }
+        },
+        completionRule: editRule
       });
       setEditingId(null);
       fetchSubjects();
@@ -86,6 +90,7 @@ const SubjectManagerPage = () => {
     setEditName(sub.name);
     setEditSessions(String(sub.completionThreshold?.sessions || 3));
     setEditHours(String(sub.completionThreshold?.hours || 5));
+    setEditRule(sub.completionRule || 'first_session');
   };
 
   const handleToggleArchive = async (sub) => {
@@ -187,7 +192,7 @@ const SubjectManagerPage = () => {
                 Create New Subject
               </h2>
               <form onSubmit={handleAddSubject} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="space-y-1 md:col-span-1">
                     <label className="text-xs text-gray-400">Subject Name</label>
                     <input
@@ -200,24 +205,38 @@ const SubjectManagerPage = () => {
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs text-gray-400">Completion Threshold (Sessions)</label>
+                    <label className="text-xs text-gray-400">Completion Rule</label>
+                    <select
+                      value={newSubRule}
+                      onChange={(e) => setNewSubRule(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#162033] border border-white/10 text-white focus:outline-none focus:border-[#5EEAD4] text-sm"
+                    >
+                      <option value="first_session">First Session (Default)</option>
+                      <option value="sixty_minutes">60 Minutes Focus</option>
+                      <option value="custom_threshold">Custom Threshold</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-gray-400">Threshold (Sessions)</label>
                     <input
                       type="number"
                       min="1"
                       value={newSubSessions}
                       onChange={(e) => setNewSubSessions(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl bg-[#162033] border border-white/10 text-white focus:outline-none focus:border-[#5EEAD4] text-sm"
+                      disabled={newSubRule !== 'custom_threshold'}
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#162033] border border-white/10 text-white focus:outline-none focus:border-[#5EEAD4] text-sm disabled:opacity-40"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs text-gray-400">Completion Threshold (Hours)</label>
+                    <label className="text-xs text-gray-400">Threshold (Hours)</label>
                     <input
                       type="number"
                       min="0.1"
                       step="0.1"
                       value={newSubHours}
                       onChange={(e) => setNewSubHours(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl bg-[#162033] border border-white/10 text-white focus:outline-none focus:border-[#5EEAD4] text-sm"
+                      disabled={newSubRule !== 'custom_threshold'}
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#162033] border border-white/10 text-white focus:outline-none focus:border-[#5EEAD4] text-sm disabled:opacity-40"
                     />
                   </div>
                 </div>
@@ -302,32 +321,45 @@ const SubjectManagerPage = () => {
                     )}
 
                     {isEditing ? (
-                      <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="w-full grid grid-cols-1 md:grid-cols-4 gap-3">
                         <input
                           type="text"
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
                           className="px-3 py-1.5 rounded-lg bg-[#162033] border border-white/10 text-white text-sm"
+                          title="Subject Name"
                         />
-                        <div className="flex gap-2">
-                          <input
-                            type="number"
-                            min="1"
-                            value={editSessions}
-                            placeholder="Sess"
-                            onChange={(e) => setEditSessions(e.target.value)}
-                            className="w-1/2 px-3 py-1.5 rounded-lg bg-[#162033] border border-white/10 text-white text-sm"
-                          />
-                          <input
-                            type="number"
-                            min="0.1"
-                            step="0.1"
-                            value={editHours}
-                            placeholder="Hrs"
-                            onChange={(e) => setEditHours(e.target.value)}
-                            className="w-1/2 px-3 py-1.5 rounded-lg bg-[#162033] border border-white/10 text-white text-sm"
-                          />
-                        </div>
+                        <select
+                          value={editRule}
+                          onChange={(e) => setEditRule(e.target.value)}
+                          className="px-3 py-1.5 rounded-lg bg-[#162033] border border-white/10 text-white text-sm"
+                          title="Completion Rule"
+                        >
+                          <option value="first_session">First Session (Default)</option>
+                          <option value="sixty_minutes">60 Minutes Focus</option>
+                          <option value="custom_threshold">Custom Threshold</option>
+                        </select>
+                        <input
+                          type="number"
+                          min="1"
+                          value={editSessions}
+                          placeholder="Sess"
+                          disabled={editRule !== 'custom_threshold'}
+                          onChange={(e) => setEditSessions(e.target.value)}
+                          className="px-3 py-1.5 rounded-lg bg-[#162033] border border-white/10 text-white text-sm disabled:opacity-40"
+                          title="Sessions Threshold"
+                        />
+                        <input
+                          type="number"
+                          min="0.1"
+                          step="0.1"
+                          value={editHours}
+                          placeholder="Hrs"
+                          disabled={editRule !== 'custom_threshold'}
+                          onChange={(e) => setEditHours(e.target.value)}
+                          className="px-3 py-1.5 rounded-lg bg-[#162033] border border-white/10 text-white text-sm disabled:opacity-40"
+                          title="Hours Threshold"
+                        />
                       </div>
                     ) : (
                       <div className="space-y-1">
@@ -352,7 +384,9 @@ const SubjectManagerPage = () => {
                         <div className="flex items-center gap-3 text-xs text-gray-400">
                           <span className="flex items-center gap-1">
                             <Clock className="w-3.5 h-3.5 text-gray-500" />
-                            Goal: {sub.completionThreshold?.sessions || 3} sessions / {sub.completionThreshold?.hours || 5} hours
+                            {sub.completionRule === 'first_session' && 'Rule: Completed on First Session'}
+                            {sub.completionRule === 'sixty_minutes' && 'Rule: Completed after 60 Minutes focus'}
+                            {(sub.completionRule === 'custom_threshold' || !sub.completionRule) && `Rule: Custom Threshold (${sub.completionThreshold?.sessions || 3} sessions / ${sub.completionThreshold?.hours || 5} hours)`}
                           </span>
                         </div>
                       </div>

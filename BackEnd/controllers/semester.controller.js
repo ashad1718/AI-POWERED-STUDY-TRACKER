@@ -64,6 +64,7 @@ exports.getSemesterProgress = asyncHandler(async (req, res) => {
       progressPercentage,
       studyHours,
       order: subject.order,
+      chapters: subChapters,
     };
   });
 
@@ -82,7 +83,9 @@ exports.getSemesterProgress = asyncHandler(async (req, res) => {
       remainingChapters,
       totalChapters,
       semesterProgress,
+      overallProgress: semesterProgress,
       subjectBreakdown,
+      subjects: subjectBreakdown,
     },
   });
 });

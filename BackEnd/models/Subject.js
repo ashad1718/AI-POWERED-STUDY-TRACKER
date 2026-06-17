@@ -44,6 +44,11 @@ const subjectSchema = new mongoose.Schema(
         min: [0.1, 'Threshold must require at least 0.1 hours'],
       },
     },
+    completionRule: {
+      type: String,
+      enum: ['first_session', 'sixty_minutes', 'custom_threshold'],
+      default: 'first_session',
+    },
   },
   {
     timestamps: true,

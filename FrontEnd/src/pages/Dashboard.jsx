@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   Clock, TrendingUp, Calendar, Plus,
-  Award, ChevronRight, BookOpen, AlertCircle, Layers, ArrowUpRight
+  Award, ChevronRight, BookOpen, AlertCircle, Layers, ArrowUpRight,
+  PieChart as PieIcon
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
@@ -289,22 +290,30 @@ const Dashboard = ({ user }) => {
                 <p className="text-xs text-text-secondary">Total study hours per day</p>
               </div>
             </div>
-            <div className="flex-1 w-full text-xs">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={weeklyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorHours" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor={chartColors[0]} stopOpacity={0.4} />
-                      <stop offset="95%" stopColor={chartColors[0]} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "rgba(255,255,255,0.03)" : "rgba(15,23,42,0.05)"} />
-                  <XAxis dataKey="name" stroke={isDark ? "#94A3B8" : "#64748B"} />
-                  <YAxis stroke={isDark ? "#94A3B8" : "#64748B"} />
-                  <Tooltip contentStyle={{ backgroundColor: isDark ? '#162033' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#E2E8F0', color: isDark ? '#F8FAFC' : '#0F172A', borderRadius: '8px' }} />
-                  <Area type="monotone" dataKey="hours" stroke={chartColors[0]} strokeWidth={3} fillOpacity={1} fill="url(#colorHours)" />
-                </AreaChart>
-              </ResponsiveContainer>
+            <div className="flex-1 w-full text-xs min-h-[260px] flex items-center justify-center">
+              {sessions.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <TrendingUp className="w-12 h-12 mx-auto mb-3 text-gray-600 opacity-60" />
+                  <p className="text-sm font-semibold text-gray-400">No study sessions logged yet.</p>
+                  <p className="text-xs text-gray-500 mt-1">Start logging study sessions to see your focus trend.</p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={weeklyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorHours" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%"  stopColor={chartColors[0]} stopOpacity={0.4} />
+                        <stop offset="95%" stopColor={chartColors[0]} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "rgba(255,255,255,0.03)" : "rgba(15,23,42,0.05)"} />
+                    <XAxis dataKey="name" stroke={isDark ? "#94A3B8" : "#64748B"} />
+                    <YAxis stroke={isDark ? "#94A3B8" : "#64748B"} />
+                    <Tooltip contentStyle={{ backgroundColor: isDark ? '#162033' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#E2E8F0', color: isDark ? '#F8FAFC' : '#0F172A', borderRadius: '8px' }} />
+                    <Area type="monotone" dataKey="hours" stroke={chartColors[0]} strokeWidth={3} fillOpacity={1} fill="url(#colorHours)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </GlassCard>
         </div>
@@ -315,16 +324,24 @@ const Dashboard = ({ user }) => {
             <h4 className="text-base font-bold text-text-primary">Subject Breakdown</h4>
             <p className="text-xs text-text-secondary">Hours per topic</p>
           </div>
-          <div className="flex-1 w-full flex items-center justify-center text-xs">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value">
-                  {pieData.map((_, i) => <Cell key={i} fill={chartColors[i % chartColors.length]} />)}
-                </Pie>
-                <Tooltip contentStyle={{ backgroundColor: isDark ? '#162033' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#E2E8F0', color: isDark ? '#F8FAFC' : '#0F172A', borderRadius: '8px' }} />
-                <Legend layout="horizontal" verticalAlign="bottom" align="center" iconSize={8} wrapperStyle={{ paddingTop: 10, color: isDark ? '#94A3B8' : '#64748B' }} />
-              </PieChart>
-            </ResponsiveContainer>
+          <div className="flex-1 w-full flex items-center justify-center text-xs min-h-[260px]">
+            {sessions.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <PieIcon className="w-12 h-12 mx-auto mb-3 text-gray-600 opacity-60" />
+                <p className="text-sm font-semibold text-gray-400">No subject analysis available.</p>
+                <p className="text-xs text-gray-500 mt-1">Log time against active subjects to see your breakdown.</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value">
+                    {pieData.map((_, i) => <Cell key={i} fill={chartColors[i % chartColors.length]} />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ backgroundColor: isDark ? '#162033' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#E2E8F0', color: isDark ? '#F8FAFC' : '#0F172A', borderRadius: '8px' }} />
+                  <Legend layout="horizontal" verticalAlign="bottom" align="center" iconSize={8} wrapperStyle={{ paddingTop: 10, color: isDark ? '#94A3B8' : '#64748B' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </GlassCard>
       </div>

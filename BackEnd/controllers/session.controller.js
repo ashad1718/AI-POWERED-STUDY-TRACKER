@@ -20,18 +20,32 @@ const checkAndUpdateChapterAutoCompletion = async (userId, subjectId, chapterId)
 
   const subject = await Subject.findOne({ _id: subjectId, userId });
   const threshold = subject?.completionThreshold || { sessions: 3, hours: 5 };
+  const rule = subject?.completionRule || 'first_session';
 
   // Fetch all sessions logged for this chapter
   const sessions = await Session.find({ userId, chapterId });
   const sessionsCount = sessions.length;
-  const totalHours = sessions.reduce((sum, s) => sum + s.duration, 0) / 60;
+  const totalMinutes = sessions.reduce((sum, s) => sum + s.duration, 0);
+  const totalHours = totalMinutes / 60;
 
-  const meetsThreshold = sessionsCount >= threshold.sessions || totalHours >= threshold.hours;
+  let meetsThreshold = false;
+  if (rule === 'first_session') {
+    meetsThreshold = sessionsCount >= 1;
+  } else if (rule === 'sixty_minutes') {
+    meetsThreshold = totalMinutes >= 60;
+  } else if (rule === 'custom_threshold') {
+    meetsThreshold = sessionsCount >= threshold.sessions || totalHours >= threshold.hours;
+  }
+
+  const wasCompleted = chapter.completed;
 
   if (meetsThreshold) {
     chapter.completed = true;
     chapter.completedMethod = 'auto';
     await chapter.save();
+    if (!wasCompleted) {
+      console.log('[CHAPTER] Marked completed');
+    }
   } else {
     // If it was auto-completed but no longer meets threshold (e.g. session deleted), revert
     if (chapter.completedMethod === 'auto') {
@@ -75,9 +89,16 @@ exports.createSession = asyncHandler(async (req, res) => {
     date,
   });
 
+  console.log('[SESSION] Created');
+
+  if (chapterId && resolvedChapter) {
+    console.log('[SESSION] Chapter linked');
+  }
+
   // Re-evaluate chapter auto-completion status
   if (subjectId && chapterId) {
     await checkAndUpdateChapterAutoCompletion(req.user.id, subjectId, chapterId);
+    console.log('[SESSION] Progress updated');
   }
 
   // Check and unlock achievements asynchronously (don't block response)

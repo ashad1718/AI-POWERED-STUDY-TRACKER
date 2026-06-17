@@ -27,7 +27,7 @@ import VerifyOTPPage      from './pages/VerifyOTPPage';
 import ResetPasswordPage  from './pages/ResetPasswordPage';
 
 import { useAuth }      from './hooks/useAuth';
-import { userAPI, refreshAccessToken } from './services/api';
+import { userAPI, authAPI, refreshAccessToken } from './services/api';
 import { ThemeProvider } from './context/ThemeContext';
 
 const AppContent = () => {
@@ -53,7 +53,7 @@ const AppContent = () => {
       if (token) {
         console.log('[AUTH] Token found on startup. Verifying session...');
         try {
-          const res = await userAPI.getMe();
+          const res = await authAPI.getMe();
           const verifiedUser = res.data.data;
           console.log(`[AUTH] Authentication restored. Logged in as: ${verifiedUser.name}`);
           setUser(verifiedUser);
@@ -70,7 +70,7 @@ const AppContent = () => {
         try {
           const newToken = await refreshAccessToken();
           if (newToken) {
-            const res = await userAPI.getMe();
+            const res = await authAPI.getMe();
             const verifiedUser = res.data.data;
             console.log(`[AUTH] Authentication restored via refresh token. Logged in as: ${verifiedUser.name}`);
             setUser(verifiedUser);

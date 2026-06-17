@@ -15,9 +15,45 @@ exports.getChapters = asyncHandler(async (req, res) => {
 
   const chapters = await Chapter.find(filter).sort({ order: 1, createdAt: -1 });
 
+  const Session = require('../models/Session');
+  const chapterIds = chapters.map(c => c._id);
+  const sessionStats = await Session.aggregate([
+    { $match: { chapterId: { $in: chapterIds } } },
+    {
+      $group: {
+        _id: '$chapterId',
+        sessionCount: { $sum: 1 },
+        totalDuration: { $sum: '$duration' }
+      }
+    }
+  ]);
+
+  const statsMap = {};
+  sessionStats.forEach(stat => {
+    if (stat._id) {
+      statsMap[stat._id.toString()] = stat;
+    }
+  });
+
+  const chaptersWithStats = chapters.map(c => {
+    const stat = statsMap[c._id.toString()] || { sessionCount: 0, totalDuration: 0 };
+    let status = 'not_started';
+    if (c.completed) {
+      status = 'completed';
+    } else if (stat.sessionCount > 0) {
+      status = 'in_progress';
+    }
+    return {
+      ...c.toObject(),
+      sessionCount: stat.sessionCount,
+      totalDuration: stat.totalDuration,
+      status
+    };
+  });
+
   res.status(200).json({
     success: true,
-    data: { chapters },
+    data: { chapters: chaptersWithStats },
   });
 });
 

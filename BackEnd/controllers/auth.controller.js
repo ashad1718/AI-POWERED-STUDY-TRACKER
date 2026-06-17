@@ -1,5 +1,6 @@
 'use strict';
 
+const mongoose     = require('mongoose');
 const jwt          = require('jsonwebtoken');
 const User         = require('../models/User');
 const AppError     = require('../utils/AppError');
@@ -85,8 +86,14 @@ exports.login = asyncHandler(async (req, res) => {
     throw new AppError('Please provide email and password.', 400, 'MISSING_CREDENTIALS');
   }
 
+  console.log(`[LOGIN] Email received: ${email}`);
   const normalizedEmail = email.toLowerCase().trim();
-  console.log(`[LOGIN] Email received: ${normalizedEmail}`);
+  console.log(`[LOGIN] Normalized email: ${normalizedEmail}`);
+
+  console.log(`[LOGIN] Database connected: ${mongoose.connection.readyState === 1}`);
+  console.log(`[LOGIN] Database name: ${mongoose.connection.name}`);
+  console.log(`[LOGIN] Collection name: ${User.collection.name}`);
+
   console.log(`[LOGIN] User lookup started`);
 
   let user;
@@ -97,12 +104,12 @@ exports.login = asyncHandler(async (req, res) => {
     throw new AppError(`Database lookup failed: ${dbErr.message}`, 500, 'DATABASE_FAILURE');
   }
 
+  console.log(`[LOGIN] User found: ${!!user}`);
+
   if (!user) {
     console.warn(`[LOGIN] User not found`);
     throw new AppError('User not found.', 401, 'USER_NOT_FOUND');
   }
-
-  console.log(`[LOGIN] User found`);
 
   let isMatch = false;
   try {
@@ -112,7 +119,7 @@ exports.login = asyncHandler(async (req, res) => {
     throw new AppError(`Error verifying credentials: ${err.message}`, 500, 'CRYPTO_ERROR');
   }
 
-  console.log(`[LOGIN] Password comparison result: ${isMatch}`);
+  console.log(`[LOGIN] Password matched: ${isMatch}`);
 
   if (!isMatch) {
     console.warn(`[LOGIN] Password mismatch`);
@@ -206,6 +213,23 @@ exports.refresh = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     data: { accessToken: newAccessToken },
+  });
+});
+
+// ─── GET /api/v1/auth/me ──────────────────────────────────────────────────────
+exports.getMe = asyncHandler(async (req, res) => {
+  const publicUser = req.user.toPublicJSON();
+  res.status(200).json({
+    success: true,
+    data: {
+      ...publicUser,
+      profile: {
+        location: publicUser.location || '',
+        avatarUrl: publicUser.avatarUrl || '',
+        twoFactorEnabled: publicUser.twoFactorEnabled || false,
+        createdAt: publicUser.createdAt,
+      },
+    },
   });
 });
 
