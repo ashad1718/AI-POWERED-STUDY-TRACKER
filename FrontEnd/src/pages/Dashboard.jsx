@@ -14,8 +14,10 @@ import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import GlassCard from '../components/GlassCard';
 import AICoachCard from '../components/AICoachCard';
+import AIStudyPlannerSection from '../components/AIStudyPlannerSection';
+import ExamPredictorSection from '../components/ExamPredictorSection';
 import { useTheme } from '../context/ThemeContext';
-import { statsAPI, sessionAPI, semesterAPI } from '../services/api';
+import { statsAPI, sessionAPI, semesterAPI, examAPI } from '../services/api';
 import { useGeminiAnalysis } from '../hooks/useGeminiAnalysis';
 
 const COLORS = ['#6EA8FE', '#5EEAD4', '#A78BFA', '#34D399', '#F472B6', '#FBBF24'];
@@ -33,6 +35,7 @@ const Dashboard = ({ user }) => {
   const [pieData,    setPieData]    = useState([]);
   const [sessions,   setSessions]   = useState([]);
   const [semester,   setSemester]   = useState(null);
+  const [predictionsData, setPredictionsData] = useState(null);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState('');
 
@@ -45,23 +48,27 @@ const Dashboard = ({ user }) => {
     hasAnalysed,
   } = useGeminiAnalysis();
 
-  const fetchAll = async () => {
+  const fetchAll = async (isSilent = false) => {
     console.log('[DASHBOARD] Dashboard request started');
-    setLoading(true);
+    if (!isSilent) {
+      setLoading(true);
+    }
     setError('');
     try {
-      const [overviewRes, weeklyRes, subjectsRes, sessionsRes, semesterRes] = await Promise.all([
+      const [overviewRes, weeklyRes, subjectsRes, sessionsRes, semesterRes, predictionsRes] = await Promise.all([
         statsAPI.overview(),
         statsAPI.weekly(),
         statsAPI.subjects(),
         sessionAPI.getAll({ limit: 5 }),
         semesterAPI.getProgress(),
+        examAPI.getPredictions(),
       ]);
       setOverview(overviewRes.data.data);
       setWeeklyData(weeklyRes.data.data.weeklyData);
       setPieData(subjectsRes.data.data.pieData);
       setSessions(sessionsRes.data.data.sessions);
       setSemester(semesterRes.data.data);
+      setPredictionsData(predictionsRes.data.data);
       console.log('[DASHBOARD] Dashboard request completed');
     } catch (err) {
       const requestUrl = err.config?.url || 'unknown URL';
@@ -71,12 +78,14 @@ const Dashboard = ({ user }) => {
       console.error(`[DASHBOARD] Dashboard request failed. URL: ${requestUrl}, Status: ${statusCode}, Error: ${errMsg}`);
       setError(`Failed to load dashboard: ${errMsg}`);
     } finally {
-      setLoading(false);
+      if (!isSilent) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchAll();
+    fetchAll(false);
   }, []);
 
   useGSAP(() => {
@@ -220,6 +229,46 @@ const Dashboard = ({ user }) => {
           >
             Configure Semester Now
           </Link>
+        </GlassCard>
+      )}
+
+      {/* ── Exam Readiness Overview Widget ─────────────────────────────────── */}
+      {hasSubjects && predictionsData && (
+        <GlassCard className="dashboard-stagger-card bg-gradient-to-br from-[#0F172A]/80 to-[#162033]/40 border-t border-[#6EA8FE]/20" hoverEffect={false}>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div>
+              <span className="px-2.5 py-1 text-[10px] font-black tracking-widest rounded bg-[#6EA8FE]/10 border border-[#6EA8FE]/20 text-[#6EA8FE] uppercase">
+                Exam Readiness Overview
+              </span>
+              <h3 className="text-xl font-black text-white mt-2">Syllabus Pacing Against Exams</h3>
+              <p className="text-xs text-gray-400">Pace calculations based on recent study activity</p>
+            </div>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 text-right">
+              <div className="border-r border-white/10 pr-6">
+                <span className="text-2xl font-black text-white">{predictionsData.overview?.totalSubjects ?? '0'}</span>
+                <span className="text-[10px] text-gray-500 block uppercase font-bold">Total Subjects</span>
+              </div>
+              <div className="border-r border-white/10 pr-6">
+                <span className={`text-2xl font-black ${predictionsData.overview?.subjectsAtRisk > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                  {predictionsData.overview?.subjectsAtRisk ?? '0'}
+                </span>
+                <span className="text-[10px] text-gray-500 block uppercase font-bold">Subjects At Risk</span>
+              </div>
+              <div className="border-r border-white/10 pr-6">
+                <span className="text-2xl font-black text-[#5EEAD4]">{predictionsData.overview?.averageCompletion ?? '0'}%</span>
+                <span className="text-[10px] text-gray-500 block uppercase font-bold">Avg Completion</span>
+              </div>
+              <div>
+                <span className="text-sm font-black text-white font-mono block mt-1">
+                  {predictionsData.overview?.expectedSemesterCompletionDate 
+                    ? new Date(predictionsData.overview.expectedSemesterCompletionDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) 
+                    : 'N/A'}
+                </span>
+                <span className="text-[10px] text-gray-500 block uppercase font-bold mt-1">Expected Completion</span>
+              </div>
+            </div>
+          </div>
         </GlassCard>
       )}
 
@@ -403,6 +452,24 @@ const Dashboard = ({ user }) => {
         </div>
 
       </div>
+
+      {/* AI Study Planner Section */}
+      {hasSubjects && (
+        <div className="dashboard-stagger-card w-full">
+          <AIStudyPlannerSection />
+        </div>
+      )}
+
+      {/* Exam Predictor & Date Manager Section */}
+      {hasSubjects && (
+        <div className="dashboard-stagger-card w-full">
+          <ExamPredictorSection 
+            data={predictionsData} 
+            onRefresh={() => fetchAll(true)} 
+          />
+        </div>
+      )}
+
     </div>
   );
 };

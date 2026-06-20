@@ -1,31 +1,19 @@
 'use strict';
 
-const { GoogleGenAI } = require('@google/genai');
+const aiConfig = require('../config/ai');
+const { parseAndNormalizePlannerResponse } = require('../utils/plannerParser');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // INITIALISATION
 // Key is read once at startup — if missing, requests fail with a clear message.
 // ─────────────────────────────────────────────────────────────────────────────
-const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
-const DEFAULT_GEMINI_API_VERSION = 'v1';
-const FALLBACK_MODELS = [
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
-];
+const DEFAULT_GEMINI_MODEL = aiConfig.PRIMARY_MODEL;
+const DEFAULT_GEMINI_API_VERSION = aiConfig.API_VERSION;
 
 const getModelsToTry = () => {
-  const primary = normalizeModelName(process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL);
-  const candidates = [
-    primary,
-    'gemini-2.5-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash'
-  ];
-  return [...new Set(candidates)];
+  return aiConfig.getModelsToTry();
 };
 
-let ai = null;
 let configuredModel = DEFAULT_GEMINI_MODEL;
 let activeModel = DEFAULT_GEMINI_MODEL;
 let apiVersion = DEFAULT_GEMINI_API_VERSION;
@@ -42,46 +30,56 @@ const supportsGenerateContent = (modelInfo = {}) => {
 };
 
 const ensureGeminiClient = () => {
-  if (!ai) {
-    throw new Error('Gemini AI is not configured. Please set GEMINI_API_KEY in your .env file.');
+  return aiConfig.getAIClient();
+};
+
+const isAIConfigured = () => {
+  try {
+    return !!ensureGeminiClient();
+  } catch (err) {
+    return false;
   }
-  return ai;
 };
 
 const initGemini = () => {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === 'your_gemini_api_key_here') {
-    console.warn('⚠️  GEMINI_API_KEY not set — AI Coach endpoint will return 503');
+  try {
+    const client = aiConfig.getAIClient();
+    if (!client) {
+      console.warn('⚠️  GEMINI_API_KEY not set — AI Coach endpoint will return 503');
+      return false;
+    }
+
+    configuredModel = normalizeModelName(process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL);
+    activeModel = configuredModel;
+    apiVersion = aiConfig.API_VERSION;
+
+    console.log(`[GEMINI] SDK: @google/genai`);
+    console.log(`[GEMINI] API version: ${apiVersion}`);
+    console.log(`[GEMINI] Configured model: ${configuredModel}`);
+    return true;
+  } catch (err) {
+    console.warn(`⚠️  Gemini AI initialisation failed: ${err.message}`);
     return false;
   }
-
-  configuredModel = normalizeModelName(process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL);
-  activeModel = configuredModel;
-  apiVersion = process.env.GEMINI_API_VERSION || DEFAULT_GEMINI_API_VERSION;
-  ai = new GoogleGenAI({
-    apiKey,
-    apiVersion,
-  });
-
-  console.log(`[GEMINI] SDK: @google/genai`);
-  console.log(`[GEMINI] API version: ${apiVersion}`);
-  console.log(`[GEMINI] Configured model: ${configuredModel}`);
-  return true;
 };
 
 const isRetriableError = (err) => {
   if (!err) return false;
   const message = (err.message || '').toUpperCase();
   const status = err.status || err.statusCode;
+
+  // Quota exceeded (429) errors should not be retried on the same model.
+  // Instead, fail immediately on this model so the service can try the fallback model.
+  if (status === 429 || message.includes('429') || message.includes('QUOTA') || message.includes('RESOURCE_EXHAUSTED')) {
+    return false;
+  }
+
   return (
-    status === 429 ||
     status === 503 ||
-    message.includes('429') ||
     message.includes('503') ||
     message.includes('UNAVAILABLE') ||
     message.includes('BUSY') ||
     message.includes('DEMAND') ||
-    message.includes('QUOTA') ||
     message.includes('TIMEOUT') ||
     message.includes('OVERLOADED')
   );
@@ -107,24 +105,9 @@ const cleanGeminiError = (err) => {
   if (message.includes('API_KEY_INVALID') || message.includes('API key not valid')) {
     return new Error('Invalid Gemini API key. Check your GEMINI_API_KEY environment variable.');
   }
-  if (
-    message.includes('QUOTA_EXCEEDED') ||
-    message.includes('429') ||
-    message.includes('503') ||
-    message.includes('UNAVAILABLE') ||
-    message.includes('busy') ||
-    message.includes('demand') ||
-    message.includes('timeout') ||
-    message.includes('TIMEOUT') ||
-    message.includes('overload')
-  ) {
-    return new Error('AI Coach is temporarily busy. Please try again in a moment.');
-  }
-  if (message.includes('not found') || message.includes('404')) {
-    return new Error(`Gemini model not found: ${message}`);
-  }
 
-  return new Error('AI Coach is temporarily busy. Please try again in a moment.');
+  // Task 6: Return "AI Planner is temporarily unavailable. Please try again." for any failures.
+  return new Error('AI Planner is temporarily unavailable. Please try again.');
 };
 
 const getAvailableGeminiModels = async ({ refresh = false } = {}) => {
@@ -163,18 +146,21 @@ const resolveGeminiModel = async ({ refresh = false } = {}) => {
   const generativeModels = models.filter(supportsGenerateContent);
   const modelIds = new Set(generativeModels.map((modelInfo) => modelInfo.id));
 
-  if (modelIds.has(configuredModel)) {
-    activeModel = configuredModel;
+  const modelsToTry = getModelsToTry();
+  const configured = modelsToTry[0] || aiConfig.PRIMARY_MODEL;
+
+  if (modelIds.has(configured)) {
+    activeModel = configured;
   } else {
-    const fallback = FALLBACK_MODELS.find((candidate) => modelIds.has(candidate));
+    const fallback = aiConfig.FALLBACK_MODELS.find((candidate) => modelIds.has(candidate));
     activeModel = fallback || generativeModels[0]?.id || DEFAULT_GEMINI_MODEL;
     console.warn(
-      `[GEMINI] Configured model "${configuredModel}" is not available. Falling back to "${activeModel}".`
+      `[GEMINI] Configured model "${configured}" is not available. Falling back to "${activeModel}".`
     );
   }
 
   lastModelValidation = {
-    configuredModel,
+    configuredModel: configured,
     activeModel,
     apiVersion,
     checkedAt: new Date().toISOString(),
@@ -204,7 +190,8 @@ const generateGeminiText = async ({ contents, config = {} }) => {
     while (retries <= maxRetries) {
       const startTime = Date.now();
       try {
-        console.log(`[GEMINI] Request model=${model} apiVersion=${apiVersion} (Attempt ${retries + 1}/${maxRetries + 1})`);
+        // Task 7 logging: Request start, selected model, api version
+        console.log(`[GEMINI Request] Starting generation request. Model: ${model}, API Version: ${apiVersion} (Attempt ${retries + 1}/${maxRetries + 1})`);
         
         const requestConfig = {
           temperature:      0.7,
@@ -223,7 +210,8 @@ const generateGeminiText = async ({ contents, config = {} }) => {
         const response = await callWithTimeout(responsePromise, 30000);
         const duration = Date.now() - startTime;
 
-        console.log(`[GEMINI LOG] Model: ${model}, Retry Count: ${retries}, Response Time: ${duration}ms`);
+        // Task 7 logging: Request success
+        console.log(`[GEMINI Request Success] Successful. Model: ${model}, Duration: ${duration}ms`);
 
         activeModel = model;
 
@@ -235,9 +223,11 @@ const generateGeminiText = async ({ contents, config = {} }) => {
         };
       } catch (err) {
         const duration = Date.now() - startTime;
-        const failureReason = err.message || 'Unknown error';
         
-        console.warn(`[GEMINI FAIL] Model: ${model}, Retry Count: ${retries}, Response Time: ${duration}ms, Failure Reason: ${failureReason}`);
+        // Task 7 logging: Request failure
+        console.warn(`[GEMINI Request Failure] Failed. Model: ${model}, Duration: ${duration}ms, Error: ${err.message}`);
+        // Task 7 logging: Full Gemini error
+        console.error('[GEMINI Full Error Detail]', err);
 
         lastError = err;
 
@@ -512,7 +502,7 @@ const analyseWithGemini = async (sessions, userName, activeSubjects = [], chapte
   }
 
   // 3. Check Gemini is initialised
-  if (!ai) {
+  if (!isAIConfigured()) {
     throw new Error('Gemini AI is not configured. Please set GEMINI_API_KEY in your .env file.');
   }
 
@@ -639,4 +629,274 @@ function calcStreak(uniqueDatesDesc) {
   return streak;
 }
 
-module.exports = { initGemini, testGeminiConnectivity, analyseWithGemini, analyseStudyData, chatWithGemini };
+const generateDailyPlanWithGemini = async (sessions, userName, activeSubjects = [], chapters = [], exams = []) => {
+  if (!isAIConfigured()) {
+    throw new Error('Gemini AI is not configured. Please set GEMINI_API_KEY in your .env file.');
+  }
+
+  const stats = compileLmsStats(sessions, activeSubjects, chapters);
+
+  // Format subjects and incomplete chapters
+  const incompleteChapters = chapters.filter(c => !c.completed);
+  const subjectsStr = activeSubjects.map(s => s.name).join(', ');
+  
+  // Format exams
+  const examsStr = exams.map(e => {
+    const sub = activeSubjects.find(s => s._id.toString() === e.subjectId.toString());
+    return `${sub ? sub.name : 'Unknown'}: ${new Date(e.date).toLocaleDateString()}`;
+  }).join(', ');
+
+  const incompleteChapsStr = incompleteChapters.map(c => {
+    const sub = activeSubjects.find(s => s._id.toString() === c.subjectId.toString());
+    return `- [${sub ? sub.name : 'Unknown'}] ${c.name}`;
+  }).slice(0, 15).join('\n');
+
+  const prompt = `You are an expert AI Study Planner. You are designing a personalised DAILY study plan for a student based on their actual course, chapter progress, study logs, and exam dates.
+
+STUDENT PROFILE:
+- Name: ${userName || 'Student'}
+- Active Subjects: ${subjectsStr || 'None'}
+- Upcoming Exams: ${examsStr || 'None'}
+- Total study time historically: ${stats ? stats.totalHours : 0} hours
+- Current streak: ${stats ? stats.streak : 0} days
+- Study consistency: ${stats ? stats.consistencyScore : 0}% (last 30 days)
+
+INCOMPLETE CHAPTERS (Focus on these):
+${incompleteChapsStr || 'No incomplete chapters — all syllabus is complete!'}
+
+INSTRUCTIONS:
+Generate a personalized Daily Study Plan (specifically for today) to help this student progress on their syllabus. Pick 2-3 specific incomplete chapters from the list above and assign study durations.
+
+Return ONLY valid JSON.
+Do not include:
+- Markdown
+- Explanations
+- Notes
+- Code blocks
+- Triple backticks
+
+The JSON response MUST match this exact schema format:
+{
+  "dailyPlan": [
+    {
+      "subject": "Subject name",
+      "chapter": "Chapter name",
+      "duration": 45,
+      "reason": "Clear explanation of why this chapter is recommended today (e.g. lagging behind or has exam coming up)"
+    }
+  ],
+  "weeklyPlan": [],
+  "recommendations": [
+    "A concise daily focus tip",
+    "Priority Subject 1",
+    "Priority Chapter 1"
+  ]
+}
+
+Requirements:
+- Plan must specify actual subjects and chapters from the student's incomplete list.
+- Keep durations realistic (between 15 and 90 minutes).
+- Return ONLY the raw JSON object, nothing else.`;
+
+  let rawText;
+  let attempts = 0;
+  const maxAttempts = 2;
+
+  while (attempts < maxAttempts) {
+    try {
+      const result = await generateGeminiText({ contents: prompt, config: { maxOutputTokens: 1024 } });
+      rawText = result.text;
+
+      const { parsed, validationStatus } = parseAndNormalizePlannerResponse(rawText, 'daily');
+      
+      if (parsed && (validationStatus.isValid || attempts === maxAttempts - 1)) {
+        return parsed;
+      }
+
+      throw new Error('JSON schema validation failed.');
+    } catch (err) {
+      attempts++;
+      console.warn(`[AI PLANNER] Daily plan generation failed (attempt ${attempts}/${maxAttempts}). Error: ${err.message}`);
+      if (attempts >= maxAttempts) {
+        throw new Error('AI Planner could not generate a valid study plan. Retrying...');
+      }
+    }
+  }
+};
+
+const generateWeeklyPlanWithGemini = async (sessions, userName, activeSubjects = [], chapters = [], exams = []) => {
+  if (!isAIConfigured()) {
+    throw new Error('Gemini AI is not configured. Please set GEMINI_API_KEY in your .env file.');
+  }
+
+  const stats = compileLmsStats(sessions, activeSubjects, chapters);
+
+  // Format subjects and incomplete chapters
+  const incompleteChapters = chapters.filter(c => !c.completed);
+  const subjectsStr = activeSubjects.map(s => s.name).join(', ');
+  
+  // Format exams
+  const examsStr = exams.map(e => {
+    const sub = activeSubjects.find(s => s._id.toString() === e.subjectId.toString());
+    return `${sub ? sub.name : 'Unknown'}: ${new Date(e.date).toLocaleDateString()}`;
+  }).join(', ');
+
+  const incompleteChapsStr = incompleteChapters.map(c => {
+    const sub = activeSubjects.find(s => s._id.toString() === c.subjectId.toString());
+    return `- [${sub ? sub.name : 'Unknown'}] ${c.name}`;
+  }).slice(0, 15).join('\n');
+
+  const prompt = `You are an expert AI Study Planner. You are designing a personalised WEEKLY study plan (Monday to Sunday) for a student based on their actual course, chapter progress, study logs, and exam dates.
+
+STUDENT PROFILE:
+- Name: ${userName || 'Student'}
+- Active Subjects: ${subjectsStr || 'None'}
+- Upcoming Exams: ${examsStr || 'None'}
+- Total study time historically: ${stats ? stats.totalHours : 0} hours
+- Study consistency: ${stats ? stats.consistencyScore : 0}% (last 30 days)
+
+INCOMPLETE CHAPTERS (Focus on these):
+${incompleteChapsStr || 'No incomplete chapters — all syllabus is complete!'}
+
+INSTRUCTIONS:
+Generate a structured Weekly Study Plan (Monday through Sunday). Assign 1-2 study tasks for each day using subjects and chapters from the incomplete list.
+
+Return ONLY valid JSON.
+Do not include:
+- Markdown
+- Explanations
+- Notes
+- Code blocks
+- Triple backticks
+
+The JSON response MUST match this exact schema format:
+{
+  "dailyPlan": [],
+  "weeklyPlan": [
+    {
+      "day": "Monday",
+      "tasks": [
+        {
+          "subject": "Subject name",
+          "chapter": "Chapter name",
+          "duration": 60,
+          "reason": "Specific study reason for this day"
+        }
+      ]
+    }
+  ],
+  "recommendations": [
+    "3 concise milestones to hit by the end of the week",
+    "A concise strategy recommendation for managing workload this week"
+  ]
+}
+
+Requirements:
+- Plan must specify actual subjects and chapters from the student's incomplete list.
+- Keep durations realistic (between 30 and 120 minutes).
+- Include all 7 days of the week (Monday through Sunday).
+- Return ONLY the raw JSON object, nothing else.`;
+
+  let rawText;
+  let attempts = 0;
+  const maxAttempts = 2;
+
+  while (attempts < maxAttempts) {
+    try {
+      const result = await generateGeminiText({ contents: prompt, config: { maxOutputTokens: 2048 } });
+      rawText = result.text;
+
+      const { parsed, validationStatus } = parseAndNormalizePlannerResponse(rawText, 'weekly');
+      
+      if (parsed && (validationStatus.isValid || attempts === maxAttempts - 1)) {
+        return parsed;
+      }
+
+      throw new Error('JSON schema validation failed.');
+    } catch (err) {
+      attempts++;
+      console.warn(`[AI PLANNER] Weekly plan generation failed (attempt ${attempts}/${maxAttempts}). Error: ${err.message}`);
+      if (attempts >= maxAttempts) {
+        throw new Error('AI Planner could not generate a valid study plan. Retrying...');
+      }
+    }
+  }
+};
+
+const generateExamInsightsWithGemini = async (predictions, userName) => {
+  if (!isAIConfigured()) {
+    throw new Error('Gemini AI is not configured. Please set GEMINI_API_KEY in your .env file.');
+  }
+
+  const predictionSummary = predictions.map(p => {
+    return `- Subject: ${p.name}
+    * Syllabus Progress: ${p.progress}%
+    * Remaining Chapters: ${p.remainingChapters}
+    * Exam Date: ${p.examDate ? new Date(p.examDate).toLocaleDateString() : 'None'}
+    * Predicted Completion Date: ${p.predictedCompletionDate ? new Date(p.predictedCompletionDate).toLocaleDateString() : 'Infinite/Undetermined'}
+    * Risk Level: ${p.riskLevel}
+    * Days difference: ${p.daysDifference !== null ? p.daysDifference + ' days' : 'N/A'}`;
+  }).join('\n');
+
+  const prompt = `You are an expert AI Exam Readiness Advisor. Analyze the student's syllabus predictions and exam dates. Write 3 highly specific, direct, actionable study pace recommendations and insights.
+
+STUDENT STATS & PREDICTIONS:
+Student: ${userName || 'Student'}
+${predictionSummary}
+
+INSTRUCTIONS:
+Based on this data, generate exactly 3 personalized insights or warnings.
+- First insight should focus on the subjects "On Track" or most advanced, acknowledging positive pace.
+- Second insight must flag the highest risk subject (if any) and mention the gap between the exam date and predicted completion.
+- Third insight must give a specific study time adjustment (e.g. "Increase study time by 30 minutes per day on Operating Systems to finish before your exam").
+
+Return ONLY valid JSON with this exact structure — no markdown, no explanation, no code blocks, just raw JSON:
+{
+  "insights": [
+    "Insight 1 (positive progress or pace check)",
+    "Insight 2 (risk/warning alert for at-risk subjects)",
+    "Insight 3 (specific hour/minute study adjustment recommendation)"
+  ]
+}
+
+Requirements:
+- Each insight must be under 20 words.
+- Relate directly to the dates and numbers provided.
+- Return ONLY the raw JSON object, nothing else.`;
+
+  let rawText;
+  try {
+    const result = await generateGeminiText({ contents: prompt, config: { maxOutputTokens: 512 } });
+    rawText = result.text;
+  } catch (err) {
+    throw cleanGeminiError(err);
+  }
+
+  try {
+    const cleaned = rawText
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/```\s*$/, '')
+      .trim();
+    const parsed = JSON.parse(cleaned);
+    return parsed.insights || [];
+  } catch (err) {
+    console.error('[GEMINI EXAM INSIGHTS JSON ERROR]', { rawText, error: err.message });
+    return [
+      "Keep study sessions consistent to meet your exam dates.",
+      "Check any subjects marked as High Risk and adjust study targets.",
+      "Log at least 30 minutes daily to get updated pace predictions."
+    ]; // safe fallback
+  }
+};
+
+module.exports = {
+  initGemini,
+  testGeminiConnectivity,
+  analyseWithGemini,
+  analyseStudyData,
+  chatWithGemini,
+  generateDailyPlanWithGemini,
+  generateWeeklyPlanWithGemini,
+  generateExamInsightsWithGemini,
+  generateGeminiText,
+};

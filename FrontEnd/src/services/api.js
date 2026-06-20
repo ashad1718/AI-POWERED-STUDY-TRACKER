@@ -157,4 +157,18 @@ export const semesterAPI = {
   setupSemester: (data) => api.post('/semester-progress/setup', data),
 };
 
+// ─── Planner API calls ───────────────────────────────────────────────────────
+export const plannerAPI = {
+  getDaily: (initial = false) => api.get('/planner/daily', { params: { initial } }),
+  getWeekly: (initial = false) => api.get('/planner/weekly', { params: { initial } }),
+};
+
+// ─── Exam API calls ──────────────────────────────────────────────────────────
+export const examAPI = {
+  getPredictions: () => api.get('/exams/predictions'),
+  create: (data) => api.post('/exams', data),
+  update: (id, data) => api.put(`/exams/${id}`, data),
+  remove: (id) => api.delete(`/exams/${id}`),
+};
+
 export default api;

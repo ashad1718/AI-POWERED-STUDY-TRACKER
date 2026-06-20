@@ -22,6 +22,8 @@ const subjectRoutes     = require('./routes/subject.routes');
 const chapterRoutes     = require('./routes/chapter.routes');
 const semesterRoutes    = require('./routes/semester.routes');
 const debugRoutes       = require('./routes/debug.routes');
+const examRoutes        = require('./routes/exam.routes');
+const plannerRoutes     = require('./routes/planner.routes');
 
 const app = express();
 
@@ -74,6 +76,10 @@ app.use('/api/v1/chapters',                    chapterRoutes);
 app.use('/api/v1/semester-progress',          semesterRoutes);
 app.use('/api/ai',              geminiLimiter, geminiRoutes);  // ← NEW — note: /api/ai not /api/v1/ai
 app.use('/api/debug',                          debugRoutes);
+app.use('/api/v1/exams',                       examRoutes);
+app.use('/api/exams',                          examRoutes);
+app.use('/api/v1/planner',                     plannerRoutes);
+app.use('/api/planner',                        plannerRoutes);
 
 app.all('*', (req, res, next) => {
   next(new AppError(`Route ${req.method} ${req.originalUrl} not found`, 404, 'NOT_FOUND'));

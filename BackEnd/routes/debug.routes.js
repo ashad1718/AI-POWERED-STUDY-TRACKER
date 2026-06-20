@@ -196,4 +196,147 @@ router.get('/auth-status', async (req, res, next) => {
   }
 });
 
+// GET /api/debug/gemini
+router.get('/gemini', async (req, res, next) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const { getModelsToTry, PRIMARY_MODEL, FALLBACK_MODELS } = require('../config/ai');
+    const { testGeminiConnectivity } = require('../services/gemini.service');
+
+    // 1. Resolve SDK version programmatically
+    let sdkVersion = 'Unknown';
+    try {
+      const pkgPath = path.join(__dirname, '../node_modules/@google/genai/package.json');
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+      sdkVersion = pkg.version || 'Unknown';
+    } catch (fsErr) {
+      console.warn('Failed to read SDK package.json:', fsErr.message);
+    }
+
+    const modelsToTry = getModelsToTry();
+    const configuredModel = process.env.GEMINI_MODEL || PRIMARY_MODEL;
+
+    // 2. Perform connectivity check
+    try {
+      const connTest = await testGeminiConnectivity();
+      res.status(200).json({
+        success: true,
+        data: {
+          sdkVersion,
+          activeModel: connTest.model,
+          configuredModel,
+          fallbackModels: FALLBACK_MODELS,
+          allModelsChecked: modelsToTry,
+          connection: {
+            status: 'connected',
+            checkedAt: connTest.checkedAt,
+            response: connTest.response
+          }
+        }
+      });
+    } catch (connErr) {
+      res.status(503).json({
+        success: false,
+        error: {
+          message: 'Gemini connection check failed.',
+          details: connErr.message,
+          sdkVersion,
+          activeModel: modelsToTry[0] || PRIMARY_MODEL,
+          configuredModel,
+          connection: {
+            status: 'failed',
+            error: connErr.message
+          }
+        }
+      });
+    }
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/debug/ai-planner
+router.get('/ai-planner', async (req, res, next) => {
+  const mockPrompt = `You are an expert AI Study Planner. You are designing a personalised DAILY study plan for a student based on their actual course, chapter progress, study logs, and exam dates.
+
+STUDENT PROFILE:
+- Name: Debug User
+- Active Subjects: Operating Systems, Database Systems
+- Upcoming Exams: Operating Systems: 10/25/2026, Database Systems: 11/15/2026
+- Total study time historically: 12 hours
+- Current streak: 3 days
+- Study consistency: 80% (last 30 days)
+
+INCOMPLETE CHAPTERS (Focus on these):
+- [Operating Systems] Process Scheduling
+- [Operating Systems] Memory Management
+- [Database Systems] Normalization
+- [Database Systems] Indexing
+
+INSTRUCTIONS:
+Generate a personalized Daily Study Plan (specifically for today) to help this student progress on their syllabus. Pick 2-3 specific incomplete chapters from the list above and assign study durations.
+
+Return ONLY valid JSON.
+Do not include:
+- Markdown
+- Explanations
+- Notes
+- Code blocks
+- Triple backticks
+
+The JSON response MUST match this exact schema format:
+{
+  "dailyPlan": [
+    {
+      "subject": "Subject name",
+      "chapter": "Chapter name",
+      "duration": 45,
+      "reason": "Clear explanation of why this chapter is recommended today (e.g. lagging behind or has exam coming up)"
+    }
+  ],
+  "weeklyPlan": [],
+  "recommendations": [
+    "A concise daily focus tip",
+    "Priority Subject 1",
+    "Priority Chapter 1"
+  ]
+}
+
+Requirements:
+- Plan must specify actual subjects and chapters from the student's incomplete list.
+- Keep durations realistic (between 15 and 90 minutes).
+- Return ONLY the raw JSON object, nothing else.`;
+
+  try {
+    const { generateGeminiText } = require('../services/gemini.service');
+    const { parseAndNormalizePlannerResponse } = require('../utils/plannerParser');
+
+    const result = await generateGeminiText({
+      contents: mockPrompt,
+      config: { maxOutputTokens: 1024 }
+    });
+    const rawResponse = result.text;
+    
+    const parsedRes = parseAndNormalizePlannerResponse(rawResponse, 'daily');
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        rawResponse,
+        parsedResponse: parsedRes.parsed,
+        validationStatus: parsedRes.validationStatus
+      }
+    });
+  } catch (err) {
+    res.status(503).json({
+      success: false,
+      error: {
+        message: 'Failed to test AI Planner in debug endpoint.',
+        details: err.message
+      }
+    });
+  }
+});
+
 module.exports = router;
