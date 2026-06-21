@@ -1,64 +1,21 @@
 'use strict';
 
 const Session       = require('../models/Session');
+const Semester      = require('../models/Semester');
 const AppError      = require('../utils/AppError');
 const asyncHandler  = require('../utils/asyncHandler');
 const { checkAndUnlockAchievements } = require('../services/achievement.service');
-
-// Helper to check and update auto-completion status for a chapter
-const checkAndUpdateChapterAutoCompletion = async (userId, subjectId, chapterId) => {
-  const Subject = require('../models/Subject');
-  const Chapter = require('../models/Chapter');
-
-  const chapter = await Chapter.findOne({ _id: chapterId, userId });
-  if (!chapter) return;
-
-  // If chapter was marked completed manually, keep it manually completed
-  if (chapter.completed && chapter.completedMethod === 'manual') {
-    return;
-  }
-
-  const subject = await Subject.findOne({ _id: subjectId, userId });
-  const threshold = subject?.completionThreshold || { sessions: 3, hours: 5 };
-  const rule = subject?.completionRule || 'first_session';
-
-  // Fetch all sessions logged for this chapter
-  const sessions = await Session.find({ userId, chapterId });
-  const sessionsCount = sessions.length;
-  const totalMinutes = sessions.reduce((sum, s) => sum + s.duration, 0);
-  const totalHours = totalMinutes / 60;
-
-  let meetsThreshold = false;
-  if (rule === 'first_session') {
-    meetsThreshold = sessionsCount >= 1;
-  } else if (rule === 'sixty_minutes') {
-    meetsThreshold = totalMinutes >= 60;
-  } else if (rule === 'custom_threshold') {
-    meetsThreshold = sessionsCount >= threshold.sessions || totalHours >= threshold.hours;
-  }
-
-  const wasCompleted = chapter.completed;
-
-  if (meetsThreshold) {
-    chapter.completed = true;
-    chapter.completedMethod = 'auto';
-    await chapter.save();
-    if (!wasCompleted) {
-      console.log('[CHAPTER] Marked completed');
-    }
-  } else {
-    // If it was auto-completed but no longer meets threshold (e.g. session deleted), revert
-    if (chapter.completedMethod === 'auto') {
-      chapter.completed = false;
-      chapter.completedMethod = 'none';
-      await chapter.save();
-    }
-  }
-};
+const { checkAndUpdateChapterAutoCompletion } = require('../services/chapterCompletion.service');
 
 // ─── POST /api/v1/sessions ────────────────────────────────────────────────────
 exports.createSession = asyncHandler(async (req, res) => {
   const { subject, subjectId, chapterId, duration, date } = req.body;
+
+  // Verify active semester exists
+  const activeSemester = await Semester.findOne({ userId: req.user.id, active: true, isDeleted: false });
+  if (!activeSemester) {
+    throw new AppError('Please configure your semester first.', 400);
+  }
 
   let resolvedSubject = subject;
   let resolvedChapter = '';

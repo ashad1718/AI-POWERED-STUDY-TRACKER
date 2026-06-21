@@ -10,6 +10,11 @@ const subjectSchema = new mongoose.Schema(
       required: [true, 'User ID is required'],
       index: true,
     },
+    semesterId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Semester',
+      index: true,
+    },
     name: {
       type: String,
       required: [true, 'Subject name is required'],

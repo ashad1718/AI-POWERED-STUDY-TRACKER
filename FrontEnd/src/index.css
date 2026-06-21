@@ -290,7 +290,7 @@ html.lenis, html.lenis body {
 }
 
 .lenis.lenis-smooth [data-lenis-prevent] {
-  overflow: clip;
+  scroll-behavior: auto !important;
 }
 
 .lenis.lenis-stopped {
@@ -420,64 +420,57 @@ html.light, :root:not(.dark) {
   }
 }
 
-/* Custom Scrollbar for Chat Window */
-.custom-scrollbar-chat {
-  scrollbar-width: thin;
-  scrollbar-color: transparent transparent;
-  transition: scrollbar-color 0.3s ease;
-}
-
-.custom-scrollbar-chat:hover {
-  scrollbar-color: #4F7CFF #131A2A;
-}
-
-html.light .custom-scrollbar-chat:hover,
-:root:not(.dark) .custom-scrollbar-chat:hover {
-  scrollbar-color: rgba(79, 124, 255, 0.4) rgba(0, 0, 0, 0.05);
-}
-
-/* Webkit styles */
-.custom-scrollbar-chat::-webkit-scrollbar {
+/* Premium Global Custom Scrollbar */
+::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
-.custom-scrollbar-chat::-webkit-scrollbar-track {
-  background: #131A2A;
+::-webkit-scrollbar-track {
+  background: #E5E7EB;
   border-radius: 9999px;
 }
 
-.custom-scrollbar-chat::-webkit-scrollbar-thumb {
-  background: transparent;
+::-webkit-scrollbar-thumb {
+  background: #4F7CFF;
   border-radius: 9999px;
-  transition: background-color 0.25s ease;
+  transition: background-color 0.2s ease;
 }
 
-.custom-scrollbar-chat:hover::-webkit-scrollbar-thumb {
+::-webkit-scrollbar-thumb:hover {
   background: #4F7CFF;
 }
 
-.custom-scrollbar-chat:hover::-webkit-scrollbar-thumb:hover {
-  background: #00C2A8;
+/* Dark mode overrides */
+.dark ::-webkit-scrollbar-track,
+html.dark ::-webkit-scrollbar-track {
+  background: #111827;
 }
 
-/* Light mode overrides for track and thumb */
-html.light .custom-scrollbar-chat::-webkit-scrollbar-track,
-:root:not(.dark) .custom-scrollbar-chat::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
+.dark ::-webkit-scrollbar-thumb,
+html.dark ::-webkit-scrollbar-thumb {
+  background: #5EEAD4;
 }
 
-html.light .custom-scrollbar-chat::-webkit-scrollbar-thumb,
-:root:not(.dark) .custom-scrollbar-chat::-webkit-scrollbar-thumb {
-  background: transparent;
+.dark ::-webkit-scrollbar-thumb:hover,
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #4F7CFF;
 }
 
-html.light .custom-scrollbar-chat:hover::-webkit-scrollbar-thumb,
-:root:not(.dark) .custom-scrollbar-chat:hover::-webkit-scrollbar-thumb {
-  background: rgba(79, 124, 255, 0.4);
+/* Firefox standard properties */
+* {
+  scrollbar-width: thin;
 }
 
-html.light .custom-scrollbar-chat:hover::-webkit-scrollbar-thumb:hover,
-:root:not(.dark) .custom-scrollbar-chat:hover::-webkit-scrollbar-thumb:hover {
-  background: #00C2A8;
+html.light, :root:not(.dark) {
+  scrollbar-color: #4F7CFF #E5E7EB;
+}
+
+.dark, html.dark {
+  scrollbar-color: #5EEAD4 #111827;
+}
+
+/* Backward compatibility for specific containers like chat */
+.custom-scrollbar-chat {
+  /* Inherits global premium scrollbar styles */
 }

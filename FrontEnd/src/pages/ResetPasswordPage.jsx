@@ -105,33 +105,6 @@ const ResetPasswordPage = () => {
           </div>
         </div>
 
-        <div className="space-y-2 anim-item">
-          <label
-            htmlFor="otp"
-            className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider block"
-          >
-            Verification Code
-          </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#94A3B8]/60">
-              <ShieldCheck className="w-4 h-4" />
-            </div>
-            <input
-              id="otp"
-              name="otp"
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]{6}"
-              maxLength={6}
-              required
-              value={otp}
-              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              autoComplete="one-time-code"
-              className="glass-input w-full pl-10 pr-4 py-3 text-sm rounded-xl focus:outline-none tracking-[0.35em] font-semibold"
-              placeholder="123456"
-            />
-          </div>
-        </div>
 
         <div className="space-y-2 anim-item">
           <div className="flex items-center justify-between gap-3">

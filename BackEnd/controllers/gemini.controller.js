@@ -3,9 +3,11 @@
 const Session                    = require('../models/Session');
 const Subject                    = require('../models/Subject');
 const Chapter                    = require('../models/Chapter');
+const Achievement                = require('../models/Achievement');
 const asyncHandler               = require('../utils/asyncHandler');
 const AppError                   = require('../utils/AppError');
 const { analyseWithGemini, chatWithGemini } = require('../services/gemini.service');
+const { calculateStreakStats } = require('../services/streak.service');
 
 // ── Rate limiting store (in-memory, per user) ─────────────────────────────────
 const lastRequestTime = new Map();
@@ -53,7 +55,9 @@ exports.analyzeStudy = asyncHandler(async (req, res) => {
   // ── Run Gemini analysis ───────────────────────────────────────────────────
   let result;
   try {
-    result = await analyseWithGemini(sessions, userName, activeSubjects, chapters);
+    const streakStats = calculateStreakStats(sessions);
+    const achievements = await Achievement.find({ userId }).lean();
+    result = await analyseWithGemini(sessions, userName, activeSubjects, chapters, streakStats, achievements);
   } catch (err) {
     if (err.message.includes('not configured')) {
       throw new AppError(err.message, 503, 'AI_NOT_CONFIGURED');
@@ -127,7 +131,9 @@ exports.chatStudy = asyncHandler(async (req, res) => {
   // ── Run Gemini chat ───────────────────────────────────────────────────────
   let result;
   try {
-    result = await chatWithGemini(sessions, userName, message.trim(), activeSubjects, chapters);
+    const streakStats = calculateStreakStats(sessions);
+    const achievements = await Achievement.find({ userId }).lean();
+    result = await chatWithGemini(sessions, userName, message.trim(), activeSubjects, chapters, streakStats, achievements);
   } catch (err) {
     if (err.message.includes('not configured')) {
       throw new AppError(err.message, 503, 'AI_NOT_CONFIGURED');

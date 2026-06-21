@@ -10,5 +10,6 @@ router.use(protect);
 router.get('/overview',  controller.getOverview);
 router.get('/weekly',    controller.getWeekly);
 router.get('/subjects',  controller.getSubjects);
+router.get('/heatmap',   controller.getHeatmap);
 
 module.exports = router;

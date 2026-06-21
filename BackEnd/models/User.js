@@ -56,6 +56,10 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    hasUsedPlanner: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true, // adds createdAt and updatedAt automatically

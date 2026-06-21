@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play, Pause, RotateCcw, Plus, BookOpen,
-  Clock, Calendar, Sparkles, CheckCircle2, AlertCircle, Layers
+  Clock, Calendar, Sparkles, CheckCircle2, AlertCircle, Layers, ChevronDown
 } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
-import { sessionAPI, subjectAPI, chapterAPI } from '../services/api';
+import { sessionAPI, subjectAPI, chapterAPI, semesterAPI } from '../services/api';
 
 const StudySessionPage = () => {
   // ── Database lists state ───────────────────────────────────────────────────
@@ -14,6 +14,10 @@ const StudySessionPage = () => {
   const [chapters, setChapters] = useState([]);
   const [loadingSubjects, setLoadingSubjects] = useState(true);
   const [loadingChapters, setLoadingChapters] = useState(false);
+
+  // Semester check state
+  const [semesterExists, setSemesterExists] = useState(true);
+  const [semesterLoading, setSemesterLoading] = useState(true);
 
   // ── Form & Selection State ─────────────────────────────────────────────────
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
@@ -72,6 +76,19 @@ const StudySessionPage = () => {
   };
 
   useEffect(() => {
+    const checkSemester = async () => {
+      try {
+        const res = await semesterAPI.getProgress();
+        if (res.data?.success) {
+          setSemesterExists(res.data.data.semesterExists);
+        }
+      } catch (err) {
+        console.error('Failed to verify semester existence:', err);
+      } finally {
+        setSemesterLoading(false);
+      }
+    };
+    checkSemester();
     fetchActiveSubjects();
   }, []);
 
@@ -125,6 +142,7 @@ const StudySessionPage = () => {
       }
       
       await sessionAPI.create(payload);
+      window.dispatchEvent(new CustomEvent('analytics-refresh'));
       setSuccess(true);
       setTimeout(() => {
         setSuccess(false);
@@ -156,6 +174,30 @@ const StudySessionPage = () => {
   };
 
   const progressPercent = ((selectedTimerMins * 60 - timeRemaining) / (selectedTimerMins * 60)) * 100;
+
+  if (!semesterLoading && !semesterExists) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <GlassCard className="max-w-md w-full text-center py-12 space-y-6">
+          <div className="w-16 h-16 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto text-yellow-500">
+            <AlertCircle className="w-8 h-8" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-bold text-white">Please configure your semester first.</h2>
+            <p className="text-xs text-gray-400">
+              You must set up a semester before managing subjects, chapters, or logging study sessions.
+            </p>
+          </div>
+          <Link
+            to="/semester-setup"
+            className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#6EA8FE] to-[#5EEAD4] text-[#070B14] font-bold text-sm hover:shadow-[0_0_20px_rgba(94,234,212,0.4)] transition-all mx-auto inline-block"
+          >
+            ⚙ Configure Semester
+          </Link>
+        </GlassCard>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 pb-12">
@@ -212,15 +254,18 @@ const StudySessionPage = () => {
                     <select
                       value={selectedSubjectId}
                       onChange={(e) => setSelectedSubjectId(e.target.value)}
-                      className="glass-input w-full pl-10 pr-4 py-3 text-sm rounded-xl focus:outline-none appearance-none bg-[#0F172A] border border-white/10 text-white"
+                      className="glass-input w-full pl-10 pr-10 py-3 text-sm rounded-xl focus:outline-none appearance-none bg-[#0F172A] border border-white/10 text-white cursor-pointer"
                       required
                     >
                       {subjects.map((sub) => (
-                        <option key={sub._id} value={sub._id}>
+                        <option key={sub._id} value={sub._id} className="bg-[#162033] text-white">
                           {sub.name}
                         </option>
                       ))}
                     </select>
+                    <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-gray-500">
+                      <ChevronDown className="w-4 h-4" />
+                    </div>
                   </div>
                 </div>
 
@@ -236,15 +281,18 @@ const StudySessionPage = () => {
                     <select
                       value={selectedChapterId}
                       onChange={(e) => setSelectedChapterId(e.target.value)}
-                      className="glass-input w-full pl-10 pr-4 py-3 text-sm rounded-xl focus:outline-none appearance-none bg-[#0F172A] border border-white/10 text-white"
+                      className="glass-input w-full pl-10 pr-10 py-3 text-sm rounded-xl focus:outline-none appearance-none bg-[#0F172A] border border-white/10 text-white cursor-pointer"
                     >
-                      <option value="">No specific chapter (General study)</option>
+                      <option value="" className="bg-[#162033] text-white">No specific chapter (General study)</option>
                       {chapters.map((chap) => (
-                        <option key={chap._id} value={chap._id}>
+                        <option key={chap._id} value={chap._id} className="bg-[#162033] text-white">
                           {chap.name} {chap.completed ? '✓' : ''}
                         </option>
                       ))}
                     </select>
+                    <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-gray-500">
+                      <ChevronDown className="w-4 h-4" />
+                    </div>
                   </div>
                 </div>
 

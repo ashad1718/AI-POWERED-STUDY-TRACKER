@@ -22,6 +22,15 @@ const chapterSchema = new mongoose.Schema(
       trim: true,
       maxlength: [150, 'Chapter name cannot exceed 150 characters'],
     },
+    estimatedTime: {
+      type: Number,
+      required: [true, 'Estimated completion time is required'],
+      default: 2,
+    },
+    actualTime: {
+      type: Number,
+      default: 0,
+    },
     completed: {
       type: Boolean,
       default: false,

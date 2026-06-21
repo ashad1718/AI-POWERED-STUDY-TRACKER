@@ -44,6 +44,7 @@ export const refreshAccessToken = async () => {
 
       const newToken = data.data.accessToken;
       console.log('[AUTH] Token refreshed successfully. Saving to localStorage.');
+      console.log('[AUTH] Refresh Successful');
       localStorage.setItem('accessToken', newToken);
       return newToken;
     } catch (refreshError) {
@@ -123,6 +124,7 @@ export const statsAPI = {
   overview: () => api.get('/stats/overview'),
   weekly:   (week) => api.get('/stats/weekly', { params: week ? { week } : {} }),
   subjects: () => api.get('/stats/subjects'),
+  heatmap:  () => api.get('/stats/heatmap'),
 };
 
 // ─── AI API calls ─────────────────────────────────────────────────────────────

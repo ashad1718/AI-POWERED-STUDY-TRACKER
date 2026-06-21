@@ -2,8 +2,10 @@
 
 const Chapter      = require('../models/Chapter');
 const Subject      = require('../models/Subject');
+const Semester     = require('../models/Semester');
 const AppError     = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
+const { checkAndUpdateChapterAutoCompletion } = require('../services/chapterCompletion.service');
 
 // ─── GET /api/v1/chapters ─────────────────────────────────────────────────────
 exports.getChapters = asyncHandler(async (req, res) => {
@@ -43,8 +45,16 @@ exports.getChapters = asyncHandler(async (req, res) => {
     } else if (stat.sessionCount > 0) {
       status = 'in_progress';
     }
+
+    const estimated = c.estimatedTime || 2;
+    const actual = c.actualTime || parseFloat((stat.totalDuration / 60).toFixed(2));
+    const difference = parseFloat((actual - estimated).toFixed(2));
+
     return {
       ...c.toObject(),
+      estimatedTime: estimated,
+      actualTime: actual,
+      difference,
       sessionCount: stat.sessionCount,
       totalDuration: stat.totalDuration,
       status
@@ -59,13 +69,26 @@ exports.getChapters = asyncHandler(async (req, res) => {
 
 // ─── POST /api/v1/chapters ────────────────────────────────────────────────────
 exports.createChapter = asyncHandler(async (req, res) => {
-  const { subjectId, name, completed, order } = req.body;
+  const { subjectId, name, completed, order, estimatedTime } = req.body;
 
   if (!subjectId) {
     throw new AppError('Subject ID is required.', 400);
   }
   if (!name || !name.trim()) {
     throw new AppError('Chapter name is required.', 400);
+  }
+  if (estimatedTime === undefined || estimatedTime === null) {
+    throw new AppError('Estimated completion time is required.', 400);
+  }
+  const estNum = Number(estimatedTime);
+  if (isNaN(estNum) || estNum < 0.1) {
+    throw new AppError('Estimated completion time must be at least 0.1 hours.', 400);
+  }
+
+  // Verify active semester exists
+  const activeSemester = await Semester.findOne({ userId: req.user.id, active: true, isDeleted: false });
+  if (!activeSemester) {
+    throw new AppError('Please configure your semester first.', 400);
   }
 
   // Verify subject exists and belongs to user
@@ -78,10 +101,14 @@ exports.createChapter = asyncHandler(async (req, res) => {
     userId: req.user.id,
     subjectId,
     name: name.trim(),
+    estimatedTime: estNum,
     completed: completed || false,
     completedMethod: completed ? 'manual' : 'none',
     order: order || 0,
   });
+
+  // Re-evaluate auto-completion in case there are already sessions
+  await checkAndUpdateChapterAutoCompletion(req.user.id, subjectId, chapter._id);
 
   res.status(201).json({
     success: true,
@@ -98,11 +125,19 @@ exports.updateChapter = asyncHandler(async (req, res) => {
     throw new AppError('You do not have permission to modify this chapter.', 403, 'FORBIDDEN');
   }
 
-  const { name, completed, completedMethod, order } = req.body;
+  const { name, completed, completedMethod, order, estimatedTime } = req.body;
 
   if (name !== undefined) chapter.name = name.trim();
   if (order !== undefined) chapter.order = order;
   
+  if (estimatedTime !== undefined) {
+    const estNum = Number(estimatedTime);
+    if (isNaN(estNum) || estNum < 0.1) {
+      throw new AppError('Estimated completion time must be at least 0.1 hours.', 400);
+    }
+    chapter.estimatedTime = estNum;
+  }
+
   if (completed !== undefined) {
     chapter.completed = completed;
     if (completed) {
@@ -116,6 +151,9 @@ exports.updateChapter = asyncHandler(async (req, res) => {
   }
 
   await chapter.save();
+
+  // Re-evaluate auto-completion status
+  await checkAndUpdateChapterAutoCompletion(req.user.id, chapter.subjectId, chapter._id);
 
   res.status(200).json({
     success: true,

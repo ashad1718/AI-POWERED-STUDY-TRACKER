@@ -15,5 +15,32 @@ exports.getAchievements = asyncHandler(async (req, res) => {
     earnedAt: earnedSlugs.get(def.slug) || null,
   }));
 
-  res.status(200).json({ success: true, data: { achievements } });
+  // Identify unnotified achievements
+  const unnotified = earned.filter((a) => a.notified === false);
+
+  if (unnotified.length > 0) {
+    await Achievement.updateMany(
+      { _id: { $in: unnotified.map((a) => a._id) } },
+      { notified: true }
+    );
+  }
+
+  const newlyUnlocked = unnotified.map((a) => {
+    const def = ACHIEVEMENT_DEFINITIONS.find((d) => d.slug === a.slug);
+    return {
+      slug: a.slug,
+      name: def?.name || a.slug,
+      desc: def?.desc || '',
+      level: def?.level || 'bronze',
+    };
+  });
+
+  res.status(200).json({
+    success: true,
+    data: {
+      achievements,
+      newlyUnlocked,
+    },
+  });
 });
+

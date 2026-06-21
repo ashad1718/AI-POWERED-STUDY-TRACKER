@@ -1,16 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { 
   Plus, Trash2, Archive, RefreshCw, ArrowUp, ArrowDown, 
-  Edit2, Check, X, BookOpen, Clock, AlertCircle, Sparkles 
+  Edit2, Check, X, BookOpen, Clock, AlertCircle, Sparkles, ChevronDown 
 } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
-import { subjectAPI } from '../services/api';
+import { subjectAPI, semesterAPI } from '../services/api';
 
 const SubjectManagerPage = () => {
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  
+  // Semester Check State
+  const [semesterExists, setSemesterExists] = useState(true);
+  const [semesterLoading, setSemesterLoading] = useState(true);
   
   // Form State
   const [newSubName, setNewSubName] = useState('');
@@ -40,6 +45,19 @@ const SubjectManagerPage = () => {
   };
 
   useEffect(() => {
+    const checkSemester = async () => {
+      try {
+        const res = await semesterAPI.getProgress();
+        if (res.data?.success) {
+          setSemesterExists(res.data.data.semesterExists);
+        }
+      } catch (err) {
+        console.error('Failed to verify semester existence:', err);
+      } finally {
+        setSemesterLoading(false);
+      }
+    };
+    checkSemester();
     fetchSubjects();
   }, []);
 
@@ -56,6 +74,7 @@ const SubjectManagerPage = () => {
         },
         completionRule: newSubRule
       });
+      window.dispatchEvent(new CustomEvent('analytics-refresh'));
       setNewSubName('');
       setNewSubSessions('3');
       setNewSubHours('5');
@@ -78,6 +97,7 @@ const SubjectManagerPage = () => {
         },
         completionRule: editRule
       });
+      window.dispatchEvent(new CustomEvent('analytics-refresh'));
       setEditingId(null);
       fetchSubjects();
     } catch (err) {
@@ -123,6 +143,7 @@ const SubjectManagerPage = () => {
     setError('');
     try {
       await subjectAPI.remove(id);
+      window.dispatchEvent(new CustomEvent('analytics-refresh'));
       fetchSubjects();
     } catch (err) {
       setError(err.response?.data?.error?.message || 'Failed to delete subject.');
@@ -154,6 +175,30 @@ const SubjectManagerPage = () => {
       fetchSubjects();
     }
   };
+
+  if (!semesterLoading && !semesterExists) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <GlassCard className="max-w-md w-full text-center py-12 space-y-6">
+          <div className="w-16 h-16 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto text-yellow-500">
+            <AlertCircle className="w-8 h-8" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-bold text-white">Please configure your semester first.</h2>
+            <p className="text-xs text-gray-400">
+              You must set up a semester before managing subjects, chapters, or logging study sessions.
+            </p>
+          </div>
+          <Link
+            to="/semester-setup"
+            className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#6EA8FE] to-[#5EEAD4] text-[#070B14] font-bold text-sm hover:shadow-[0_0_20px_rgba(94,234,212,0.4)] transition-all mx-auto inline-block"
+          >
+            ⚙ Configure Semester
+          </Link>
+        </GlassCard>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 pb-12">
@@ -206,15 +251,20 @@ const SubjectManagerPage = () => {
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs text-gray-400">Completion Rule</label>
-                    <select
-                      value={newSubRule}
-                      onChange={(e) => setNewSubRule(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl bg-[#162033] border border-white/10 text-white focus:outline-none focus:border-[#5EEAD4] text-sm"
-                    >
-                      <option value="first_session">First Session (Default)</option>
-                      <option value="sixty_minutes">60 Minutes Focus</option>
-                      <option value="custom_threshold">Custom Threshold</option>
-                    </select>
+                    <div className="relative">
+                      <select
+                        value={newSubRule}
+                        onChange={(e) => setNewSubRule(e.target.value)}
+                        className="w-full px-4 pr-10 py-2.5 rounded-xl bg-[#162033] border border-white/10 text-white focus:outline-none focus:border-[#5EEAD4] text-sm appearance-none cursor-pointer"
+                      >
+                        <option value="first_session" className="bg-[#162033] text-white">First Session (Default)</option>
+                        <option value="sixty_minutes" className="bg-[#162033] text-white">60 Minutes Focus</option>
+                        <option value="custom_threshold" className="bg-[#162033] text-white">Custom Threshold</option>
+                      </select>
+                      <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-gray-500">
+                        <ChevronDown className="w-4 h-4" />
+                      </div>
+                    </div>
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs text-gray-400">Threshold (Sessions)</label>
@@ -329,16 +379,21 @@ const SubjectManagerPage = () => {
                           className="px-3 py-1.5 rounded-lg bg-[#162033] border border-white/10 text-white text-sm"
                           title="Subject Name"
                         />
-                        <select
-                          value={editRule}
-                          onChange={(e) => setEditRule(e.target.value)}
-                          className="px-3 py-1.5 rounded-lg bg-[#162033] border border-white/10 text-white text-sm"
-                          title="Completion Rule"
-                        >
-                          <option value="first_session">First Session (Default)</option>
-                          <option value="sixty_minutes">60 Minutes Focus</option>
-                          <option value="custom_threshold">Custom Threshold</option>
-                        </select>
+                        <div className="relative">
+                          <select
+                            value={editRule}
+                            onChange={(e) => setEditRule(e.target.value)}
+                            className="w-full px-3 pr-8 py-1.5 rounded-lg bg-[#162033] border border-white/10 text-white text-sm appearance-none cursor-pointer"
+                            title="Completion Rule"
+                          >
+                            <option value="first_session" className="bg-[#162033] text-white">First Session (Default)</option>
+                            <option value="sixty_minutes" className="bg-[#162033] text-white">60 Minutes Focus</option>
+                            <option value="custom_threshold" className="bg-[#162033] text-white">Custom Threshold</option>
+                          </select>
+                          <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none text-gray-400">
+                            <ChevronDown className="w-3.5 h-3.5" />
+                          </div>
+                        </div>
                         <input
                           type="number"
                           min="1"

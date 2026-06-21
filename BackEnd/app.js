@@ -49,7 +49,11 @@ app.use(cookieParser());
 
 
 
-app.use('/api/', apiLimiter);
+if (process.env.NODE_ENV !== 'development') {
+  app.use('/api/', apiLimiter);
+} else {
+  console.log('⚠️ [DEV] Rate limiter bypassed');
+}
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({

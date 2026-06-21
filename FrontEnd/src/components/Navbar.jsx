@@ -119,6 +119,15 @@ const Navbar = ({ isLoggedIn, handleLogout, user }) => {
                   <span className="absolute bottom-0 left-0 w-full h-[1.5px] bg-secondary scale-x-0 group-hover/item:scale-x-100 transition-transform duration-300 origin-left" />
                 </Link>
                 <Link 
+                  to="/achievements" 
+                  className={`text-sm font-medium transition-colors relative py-1 group/item ${
+                    location.pathname === '/achievements' ? 'text-secondary' : 'text-text-secondary hover:text-secondary'
+                  }`}
+                >
+                  Achievements
+                  <span className="absolute bottom-0 left-0 w-full h-[1.5px] bg-secondary scale-x-0 group-hover/item:scale-x-100 transition-transform duration-300 origin-left" />
+                </Link>
+                <Link 
                   to="/profile" 
                   className={`text-sm font-medium transition-colors relative py-1 group/item ${
                     location.pathname === '/profile' ? 'text-secondary' : 'text-text-secondary hover:text-secondary'
@@ -268,6 +277,13 @@ const Navbar = ({ isLoggedIn, handleLogout, user }) => {
                     className={`text-sm font-semibold ${location.pathname === '/ai-coach' ? 'text-secondary' : 'text-text-secondary'}`}
                   >
                     AI Coach
+                  </Link>
+                  <Link 
+                    to="/achievements" 
+                    onClick={() => setIsOpen(false)}
+                    className={`text-sm font-semibold ${location.pathname === '/achievements' ? 'text-secondary' : 'text-text-secondary'}`}
+                  >
+                    Achievements
                   </Link>
                   <Link 
                     to="/profile" 

@@ -74,14 +74,14 @@ const AICoachPage = ({ user }) => {
     // Check if user is scrolled near the bottom (within 200px)
     const isNearBottom = scrollHeight - scrollTop - clientHeight < 200;
 
-    if (isNearBottom) {
+    if (isNearBottom || chatLoading) {
       setTimeout(() => scrollToBottom('smooth'), 50);
       setHasUnread(false);
     } else {
       // User is scrolled up, mark unread messages
       setHasUnread(true);
     }
-  }, [messages]);
+  }, [messages, chatLoading]);
 
   // Handle scroll events to show/hide the scroll-to-bottom button
   const handleScroll = () => {

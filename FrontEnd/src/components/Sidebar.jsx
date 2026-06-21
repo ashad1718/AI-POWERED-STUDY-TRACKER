@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, User, ChevronLeft, ChevronRight, LogOut, Brain, Sparkles } from 'lucide-react';
+import { LayoutDashboard, BookOpen, User, ChevronLeft, ChevronRight, LogOut, Brain, Sparkles, Award } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 
@@ -28,6 +28,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, handleLogout }) => {
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Study Session', path: '/study-session', icon: BookOpen },
     { name: 'AI Coach', path: '/ai-coach', icon: Sparkles },
+    { name: 'Achievements', path: '/achievements', icon: Award },
     { name: 'Profile', path: '/profile', icon: User },
   ];
 

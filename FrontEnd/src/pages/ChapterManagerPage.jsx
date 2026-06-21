@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { 
   Plus, Trash2, Check, X, BookOpen, Clock, AlertCircle, 
   RefreshCw, ArrowUp, ArrowDown, Edit2, Layers, CheckCircle2 
 } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
-import { subjectAPI, chapterAPI } from '../services/api';
+import { subjectAPI, chapterAPI, semesterAPI } from '../services/api';
 
 const ChapterManagerPage = () => {
   const [subjects, setSubjects] = useState([]);
@@ -15,13 +16,19 @@ const ChapterManagerPage = () => {
   const [loadingChapters, setLoadingChapters] = useState(false);
   const [error, setError] = useState('');
 
+  // Semester Check State
+  const [semesterExists, setSemesterExists] = useState(true);
+  const [semesterLoading, setSemesterLoading] = useState(true);
+
   // Form State
   const [newChapName, setNewChapName] = useState('');
+  const [newChapEstimatedTime, setNewChapEstimatedTime] = useState('2');
   const [isAdding, setIsAdding] = useState(false);
 
   // Edit State
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
+  const [editEstimatedTime, setEditEstimatedTime] = useState('2');
 
   const fetchSubjects = async () => {
     setLoadingSubjects(true);
@@ -55,6 +62,19 @@ const ChapterManagerPage = () => {
   };
 
   useEffect(() => {
+    const checkSemester = async () => {
+      try {
+        const res = await semesterAPI.getProgress();
+        if (res.data?.success) {
+          setSemesterExists(res.data.data.semesterExists);
+        }
+      } catch (err) {
+        console.error('Failed to verify semester existence:', err);
+      } finally {
+        setSemesterLoading(false);
+      }
+    };
+    checkSemester();
     fetchSubjects();
   }, []);
 
@@ -70,13 +90,23 @@ const ChapterManagerPage = () => {
     e.preventDefault();
     if (!newChapName.trim() || !selectedSubId) return;
     setError('');
+    
+    const estVal = parseFloat(newChapEstimatedTime);
+    if (isNaN(estVal) || estVal < 0.1) {
+      setError('Estimated time must be at least 0.1 hours.');
+      return;
+    }
+
     try {
       await chapterAPI.create({
         subjectId: selectedSubId,
         name: newChapName.trim(),
+        estimatedTime: estVal,
         order: chapters.length,
       });
+      window.dispatchEvent(new CustomEvent('analytics-refresh'));
       setNewChapName('');
+      setNewChapEstimatedTime('2');
       setIsAdding(false);
       fetchChapters(selectedSubId, false);
     } catch (err) {
@@ -87,8 +117,19 @@ const ChapterManagerPage = () => {
   const handleSaveEdit = async (id) => {
     if (!editName.trim()) return;
     setError('');
+    
+    const estVal = parseFloat(editEstimatedTime);
+    if (isNaN(estVal) || estVal < 0.1) {
+      setError('Estimated time must be at least 0.1 hours.');
+      return;
+    }
+
     try {
-      await chapterAPI.update(id, { name: editName.trim() });
+      await chapterAPI.update(id, { 
+        name: editName.trim(),
+        estimatedTime: estVal
+      });
+      window.dispatchEvent(new CustomEvent('analytics-refresh'));
       setEditingId(null);
       fetchChapters(selectedSubId, false);
     } catch (err) {
@@ -99,6 +140,7 @@ const ChapterManagerPage = () => {
   const startEditing = (chap) => {
     setEditingId(chap._id);
     setEditName(chap.name);
+    setEditEstimatedTime(String(chap.estimatedTime || 2));
   };
 
   const handleToggleCompleted = async (chap) => {
@@ -124,6 +166,7 @@ const ChapterManagerPage = () => {
         completed: !chap.completed,
         completedMethod: !chap.completed ? 'manual' : 'none'
       });
+      window.dispatchEvent(new CustomEvent('analytics-refresh'));
       // Background sync without loader
       await fetchChapters(selectedSubId, false);
     } catch (err) {
@@ -138,6 +181,7 @@ const ChapterManagerPage = () => {
     setError('');
     try {
       await chapterAPI.remove(id);
+      window.dispatchEvent(new CustomEvent('analytics-refresh'));
       fetchChapters(selectedSubId, false);
     } catch (err) {
       setError(err.response?.data?.error?.message || 'Failed to delete chapter.');
@@ -169,6 +213,30 @@ const ChapterManagerPage = () => {
   const completedCount = chapters.filter(c => c.completed).length;
   const totalCount = chapters.length;
   const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+  if (!semesterLoading && !semesterExists) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <GlassCard className="max-w-md w-full text-center py-12 space-y-6">
+          <div className="w-16 h-16 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto text-yellow-500">
+            <AlertCircle className="w-8 h-8" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-bold text-white">Please configure your semester first.</h2>
+            <p className="text-xs text-gray-400">
+              You must set up a semester before managing subjects, chapters, or logging study sessions.
+            </p>
+          </div>
+          <Link
+            to="/semester-setup"
+            className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#6EA8FE] to-[#5EEAD4] text-[#070B14] font-bold text-sm hover:shadow-[0_0_20px_rgba(94,234,212,0.4)] transition-all mx-auto inline-block"
+          >
+            ⚙ Configure Semester
+          </Link>
+        </GlassCard>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 pb-12">
@@ -207,12 +275,12 @@ const ChapterManagerPage = () => {
             <p className="text-sm text-gray-400 max-w-md mx-auto mb-6">
               You must have at least one active subject before configuring chapters.
             </p>
-            <a 
-              href="/subjects" 
+            <Link 
+              to="/subjects" 
               className="px-6 py-2.5 rounded-xl bg-[#5EEAD4] text-[#070B14] font-bold text-sm hover:opacity-90 inline-block"
             >
               Go to Subject Manager
-            </a>
+            </Link>
           </div>
         </GlassCard>
       ) : (
@@ -292,20 +360,38 @@ const ChapterManagerPage = () => {
                       <Layers className="w-4 h-4 text-[#5EEAD4]" />
                       Add Chapter for {subjects.find(s => s._id === selectedSubId)?.name}
                     </h3>
-                    <form onSubmit={handleAddChapter} className="flex gap-3">
-                      <input
-                        type="text"
-                        placeholder="e.g. Chapter 1: Introduction to SQL"
-                        value={newChapName}
-                        onChange={(e) => setNewChapName(e.target.value)}
-                        className="flex-1 px-4 py-2 rounded-xl bg-[#162033] border border-white/10 text-white focus:outline-none focus:border-[#5EEAD4] text-sm"
-                        required
-                      />
+                    <form onSubmit={handleAddChapter} className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="md:col-span-2">
+                          <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">Chapter Name</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Chapter 1: Introduction to SQL"
+                            value={newChapName}
+                            onChange={(e) => setNewChapName(e.target.value)}
+                            className="w-full px-4 py-2 rounded-xl bg-[#162033] border border-white/10 text-white focus:outline-none focus:border-[#5EEAD4] text-sm"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">Est. Hours</label>
+                          <input
+                            type="number"
+                            min="0.1"
+                            step="0.1"
+                            placeholder="2"
+                            value={newChapEstimatedTime}
+                            onChange={(e) => setNewChapEstimatedTime(e.target.value)}
+                            className="w-full px-4 py-2 rounded-xl bg-[#162033] border border-white/10 text-white focus:outline-none focus:border-[#5EEAD4] text-sm"
+                            required
+                          />
+                        </div>
+                      </div>
                       <button
                         type="submit"
-                        className="px-5 py-2 rounded-xl bg-[#5EEAD4] text-[#070B14] font-bold text-sm hover:opacity-90 transition-all"
+                        className="w-full py-2.5 rounded-xl bg-[#5EEAD4] text-[#070B14] font-bold text-sm hover:opacity-90 transition-all"
                       >
-                        Add
+                        Add Chapter
                       </button>
                     </form>
                   </GlassCard>
@@ -345,6 +431,36 @@ const ChapterManagerPage = () => {
                 >
                   {chapters.map((chap, index) => {
                     const isEditing = editingId === chap._id;
+
+                    // Calculate granular status label
+                    const estimated = chap.estimatedTime || 2;
+                    const actual = chap.actualTime || 0;
+                    let pacingLabel = '';
+                    let pacingClass = 'bg-slate-500/15 text-slate-400 border-slate-500/20';
+
+                    if (chap.completed) {
+                      if (actual < estimated) {
+                        pacingLabel = '🟢 Completed Early';
+                        pacingClass = 'bg-green-500/10 text-green-400 border-green-500/20';
+                      } else if (actual === estimated) {
+                        pacingLabel = '🟢 Completed On Time';
+                        pacingClass = 'bg-green-500/10 text-green-400 border-green-500/20';
+                      } else {
+                        pacingLabel = '⚠️ Took Longer Than Expected';
+                        pacingClass = 'bg-red-500/10 text-red-400 border-red-500/20';
+                      }
+                    } else {
+                      if (actual > estimated) {
+                        pacingLabel = '⚠️ Took Longer Than Expected';
+                        pacingClass = 'bg-red-500/10 text-red-400 border-red-500/20';
+                      } else if (actual > 0) {
+                        pacingLabel = '⚡ In Progress';
+                        pacingClass = 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
+                      } else {
+                        pacingLabel = '💤 Not Started';
+                        pacingClass = 'bg-gray-500/10 text-gray-400 border-gray-500/20';
+                      }
+                    }
 
                     return (
                       <div
@@ -391,36 +507,38 @@ const ChapterManagerPage = () => {
                           )}
 
                           {isEditing ? (
-                            <input
-                              type="text"
-                              value={editName}
-                              onChange={(e) => setEditName(e.target.value)}
-                              className="w-full px-3 py-1.5 rounded-lg bg-[#162033] border border-white/10 text-white text-sm"
-                              autoFocus
-                            />
+                            <div className="flex-1 flex gap-2">
+                              <input
+                                type="text"
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                                className="flex-1 px-3 py-1.5 rounded-lg bg-[#162033] border border-white/10 text-white text-sm"
+                                placeholder="Chapter Name"
+                                autoFocus
+                              />
+                              <input
+                                type="number"
+                                min="0.1"
+                                step="0.1"
+                                value={editEstimatedTime}
+                                onChange={(e) => setEditEstimatedTime(e.target.value)}
+                                className="w-20 px-3 py-1.5 rounded-lg bg-[#162033] border border-white/10 text-white text-sm"
+                                placeholder="Hours"
+                              />
+                            </div>
                           ) : (
                             <div className="truncate space-y-1">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <p className={`text-sm font-semibold truncate ${chap.completed ? 'text-gray-400 line-through' : 'text-white'}`}>
                                   {chap.name}
                                 </p>
-                                {/* Badges */}
-                                {chap.status === 'completed' && (
-                                  <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-green-500/20 text-green-300 border border-green-500/35">
-                                    COMPLETED
-                                  </span>
-                                )}
-                                {chap.status === 'in_progress' && (
-                                  <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-yellow-500/20 text-yellow-300 border border-yellow-500/35">
-                                    IN PROGRESS
-                                  </span>
-                                )}
-                                {chap.status === 'not_started' && (
-                                  <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-slate-500/15 text-slate-400 border border-slate-500/20">
-                                    NOT STARTED
-                                  </span>
-                                )}
+                                <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded border ${pacingClass}`}>
+                                  {pacingLabel}
+                                </span>
                               </div>
+                              <p className="text-[10px] text-gray-400 font-mono">
+                                Estimated: {estimated} hrs | Actual: {actual} hrs
+                              </p>
                               {chap.completed && (
                                 <p className="text-[10px] text-green-400 font-medium mt-0.5">
                                   ✓ Completed {chap.completedMethod === 'auto' ? '(Auto-logged)' : '(Manual)'}

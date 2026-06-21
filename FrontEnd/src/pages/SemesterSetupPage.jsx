@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Sparkles, ShieldAlert, Plus, Trash2, ArrowRight, CheckCircle2, AlertCircle, BookOpen 
+  Sparkles, ShieldAlert, Plus, Trash2, ArrowRight, CheckCircle2, AlertCircle, BookOpen, Settings
 } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
 import { semesterAPI } from '../services/api';
@@ -14,6 +14,14 @@ const SemesterSetupPage = () => {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+
+  // Semester Configuration State
+  const [semesterNameOption, setSemesterNameOption] = useState('Semester 1');
+  const [customSemesterName, setCustomSemesterName] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [expectedHoursPerWeek, setExpectedHoursPerWeek] = useState('10');
+  const [goalGPA, setGoalGPA] = useState('');
 
   const handleAddSubjectToList = (e) => {
     e.preventDefault();
@@ -32,6 +40,24 @@ const SemesterSetupPage = () => {
   };
 
   const handleLaunchSemester = async () => {
+    const finalName = semesterNameOption === 'Custom' ? customSemesterName : semesterNameOption;
+    if (!finalName || !finalName.trim()) {
+      setError('Semester name is required.');
+      return;
+    }
+    if (!startDate || !endDate) {
+      setError('Start date and end date are required.');
+      return;
+    }
+    if (new Date(startDate) >= new Date(endDate)) {
+      setError('Start date must be before end date.');
+      return;
+    }
+    const hours = parseFloat(expectedHoursPerWeek);
+    if (isNaN(hours) || hours <= 0) {
+      setError('Expected study hours per week must be greater than 0.');
+      return;
+    }
     if (newSubjects.length === 0) {
       setError('Please add at least one subject for the new semester.');
       return;
@@ -40,6 +66,11 @@ const SemesterSetupPage = () => {
     setError('');
     try {
       await semesterAPI.setupSemester({
+        name: finalName.trim(),
+        startDate,
+        endDate,
+        expectedHoursPerWeek: hours,
+        goalGPA: goalGPA ? parseFloat(goalGPA) : undefined,
         archiveActive,
         newSubjects,
       });
@@ -75,9 +106,11 @@ const SemesterSetupPage = () => {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8 pb-12">
+    <div className="max-w-4xl mx-auto space-y-8 pb-12">
       <div>
-        <h1 className="text-3xl font-extrabold text-white tracking-tight">New Semester Setup</h1>
+        <h1 className="text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
+          <Settings className="w-8 h-8 text-[#5EEAD4]" /> New Semester Setup
+        </h1>
         <p className="text-sm text-gray-400 mt-1">
           Archive previous subjects and establish your new academic curriculum.
         </p>
@@ -90,9 +123,9 @@ const SemesterSetupPage = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
         {/* Left column: Information and options */}
-        <div className="md:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6">
           <GlassCard hoverEffect={false} className="border-yellow-500/20 bg-yellow-500/5">
             <h3 className="text-sm font-bold text-yellow-400 flex items-center gap-2 mb-2">
               <ShieldAlert className="w-4 h-4" />
@@ -106,26 +139,112 @@ const SemesterSetupPage = () => {
           </GlassCard>
 
           <GlassCard hoverEffect={false}>
-            <h3 className="text-base font-bold text-white mb-4">Rollover Settings</h3>
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={archiveActive}
-                onChange={(e) => setArchiveActive(e.target.checked)}
-                className="mt-1 accent-[#5EEAD4]"
-              />
-              <div>
-                <p className="text-sm font-semibold text-white">Archive Current Curriculum</p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  Set all currently active subjects to "Archived" status automatically.
-                </p>
+            <h3 className="text-base font-bold text-white mb-4">Semester Configuration</h3>
+            <div className="space-y-4">
+              {/* Semester Name Selection */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Semester Name</label>
+                <select
+                  value={semesterNameOption}
+                  onChange={(e) => setSemesterNameOption(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#162033] border border-white/10 text-white focus:outline-none focus:border-[#5EEAD4] text-sm"
+                >
+                  <option value="Semester 1">Semester 1</option>
+                  <option value="Semester 2">Semester 2</option>
+                  <option value="Semester 3">Semester 3</option>
+                  <option value="Semester 4">Semester 4</option>
+                  <option value="Custom">Custom Name...</option>
+                </select>
               </div>
-            </label>
+
+              {semesterNameOption === 'Custom' && (
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Custom Semester Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Fall 2026"
+                    value={customSemesterName}
+                    onChange={(e) => setCustomSemesterName(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-[#162033] border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-[#5EEAD4] text-sm"
+                    required
+                  />
+                </div>
+              )}
+
+              {/* Start Date */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Start Date</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#162033] border border-white/10 text-white focus:outline-none focus:border-[#5EEAD4] text-sm"
+                  required
+                />
+              </div>
+
+              {/* End Date */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">End Date</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#162033] border border-white/10 text-white focus:outline-none focus:border-[#5EEAD4] text-sm"
+                  required
+                />
+              </div>
+
+              {/* Expected study hours per week */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Target Study Hours / Week</label>
+                <input
+                  type="number"
+                  min="0.5"
+                  step="0.5"
+                  value={expectedHoursPerWeek}
+                  onChange={(e) => setExpectedHoursPerWeek(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#162033] border border-white/10 text-white focus:outline-none focus:border-[#5EEAD4] text-sm"
+                  required
+                />
+              </div>
+
+              {/* Optional Goal GPA */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Goal GPA (Optional)</label>
+                <input
+                  type="number"
+                  min="0.0"
+                  max="10.0"
+                  step="0.1"
+                  placeholder="e.g. 3.8"
+                  value={goalGPA}
+                  onChange={(e) => setGoalGPA(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#162033] border border-white/10 text-white focus:outline-none focus:border-[#5EEAD4] text-sm"
+                />
+              </div>
+
+              {/* Rollover Settings Checkbox */}
+              <label className="flex items-start gap-3 cursor-pointer pt-2">
+                <input
+                  type="checkbox"
+                  checked={archiveActive}
+                  onChange={(e) => setArchiveActive(e.target.checked)}
+                  className="mt-1 accent-[#5EEAD4]"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-white">Archive Current Curriculum</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Set all currently active subjects to "Archived" status automatically.
+                  </p>
+                </div>
+              </label>
+            </div>
           </GlassCard>
         </div>
 
         {/* Right column: Subject adding and listing */}
-        <div className="md:col-span-3 space-y-6">
+        <div className="lg:col-span-3 space-y-6">
           <GlassCard hoverEffect={false}>
             <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
               <BookOpen className="w-5 h-5 text-[#6EA8FE]" />
@@ -142,7 +261,7 @@ const SemesterSetupPage = () => {
               />
               <button
                 type="submit"
-                className="px-4 py-2.5 rounded-xl bg-[#5EEAD4] text-[#070B14] font-bold text-sm flex items-center gap-1 hover:opacity-90"
+                className="px-4 py-2.5 rounded-xl bg-[#5EEAD4] text-[#070B14] font-bold text-sm flex items-center gap-1 hover:opacity-90 transition-all shrink-0"
               >
                 <Plus className="w-4 h-4" />
                 Add
@@ -162,7 +281,7 @@ const SemesterSetupPage = () => {
                 {newSubjects.map((sub, index) => (
                   <div
                     key={index}
-                    className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-[#0F172A]/60 border border-white/5"
+                    className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-[#0F172A]/60 border border-white/5 animate-fadeIn"
                   >
                     <span className="text-sm font-semibold text-white">{sub}</span>
                     <button

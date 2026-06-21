@@ -2,6 +2,7 @@
 
 const Subject      = require('../models/Subject');
 const Chapter      = require('../models/Chapter');
+const Semester     = require('../models/Semester');
 const AppError     = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
 
@@ -33,8 +34,15 @@ exports.createSubject = asyncHandler(async (req, res) => {
     throw new AppError('Subject name is required.', 400);
   }
 
+  // Verify active semester exists
+  const activeSemester = await Semester.findOne({ userId: req.user.id, active: true, isDeleted: false });
+  if (!activeSemester) {
+    throw new AppError('Please configure your semester first.', 400);
+  }
+
   const subject = await Subject.create({
     userId: req.user.id,
+    semesterId: activeSemester._id,
     name: name.trim(),
     completionThreshold,
     completionRule,

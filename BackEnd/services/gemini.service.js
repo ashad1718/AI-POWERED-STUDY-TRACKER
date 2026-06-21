@@ -390,8 +390,40 @@ const compileLmsStats = (sessions, activeSubjects, chapters) => {
     const remainingChapters = totalChapters - completedChapters;
     const progressPercentage = totalChapters > 0 ? Math.round((completedChapters / totalChapters) * 100) : 0;
 
-    const subSessions = sessions.filter(s => s.subjectId && s.subjectId.toString() === subId);
-    const studyHours = subSessions.reduce((sum, s) => sum + s.duration, 0) / 60;
+    let totalEstimatedHours = 0;
+    let totalActualHours = 0;
+
+    const chaptersList = subChapters.map(c => {
+      const estimated = c.estimatedTime || 2;
+      const actual = c.actualTime || 0;
+      totalEstimatedHours += estimated;
+      totalActualHours += actual;
+
+      let status = 'Not Started';
+      if (c.completed) {
+        if (actual < estimated) status = 'Completed Early';
+        else if (actual === estimated) status = 'Completed On Time';
+        else status = 'Took Longer Than Expected';
+      } else {
+        if (actual > estimated) status = 'Took Longer Than Expected';
+        else if (actual > 0) status = 'In Progress';
+      }
+
+      return {
+        name: c.name,
+        completed: c.completed,
+        estimatedTime: estimated,
+        actualTime: actual,
+        status,
+      };
+    });
+
+    let subjectStatus = 'On Track';
+    if (totalActualHours > totalEstimatedHours) {
+      subjectStatus = 'Behind Schedule';
+    } else if (totalActualHours < totalEstimatedHours && progressPercentage > 0) {
+      subjectStatus = 'Ahead Of Schedule';
+    }
 
     return {
       name: sub.name,
@@ -399,8 +431,10 @@ const compileLmsStats = (sessions, activeSubjects, chapters) => {
       completedChapters,
       remainingChapters,
       progressPercentage,
-      studyHours: parseFloat(studyHours.toFixed(1)),
-      chapters: subChapters.map(c => ({ name: c.name, completed: c.completed })),
+      totalEstimatedHours,
+      totalActualHours,
+      status: subjectStatus,
+      chapters: chaptersList,
     };
   });
 
@@ -420,7 +454,8 @@ const compileLmsStats = (sessions, activeSubjects, chapters) => {
 };
 
 // ─── PROMPT BUILDER ───────────────────────────────────────────────────────────
-const buildPrompt = (stats, userName) => {
+// ─── PROMPT BUILDER ───────────────────────────────────────────────────────────
+const buildPrompt = (stats, userName, streakStats = {}, achievements = []) => {
   const topSubjects = stats.subjectDistribution
     .slice(0, 5)
     .map((s) => `  - ${s.name}: ${s.hours}h (${s.percentage}%)`)
@@ -433,10 +468,18 @@ const buildPrompt = (stats, userName) => {
 
   const lmsOverviewStr = stats.subjectProgress && stats.subjectProgress.length > 0
     ? stats.subjectProgress.map(sp => {
-        const chaptersList = sp.chapters.map(c => `      * ${c.name} [${c.completed ? 'COMPLETED' : 'INCOMPLETE'}]`).join('\n');
-        return `  - ${sp.name}: ${sp.completedChapters}/${sp.totalChapters} Chapters Completed (${sp.progressPercentage}% progress, ${sp.studyHours}h studied)\n${chaptersList}`;
+        const chaptersList = sp.chapters.map(c => `      * ${c.name} [${c.completed ? 'COMPLETED' : 'INCOMPLETE'}, Est Hours: ${c.estimatedTime}h, Act Hours: ${c.actualTime}h, Pacing: ${c.status}]`).join('\n');
+        return `  - ${sp.name}: ${sp.completedChapters}/${sp.totalChapters} Chapters Completed (${sp.progressPercentage}% progress, Subject Pacing: ${sp.status}, Est Hours: ${sp.totalEstimatedHours}h, Act Hours: ${sp.totalActualHours}h)\n${chaptersList}`;
       }).join('\n')
     : '  - No active subjects loaded yet.';
+
+  const achievementsList = achievements.length > 0
+    ? achievements.map(a => `  - ${a.slug} (earned ${new Date(a.createdAt).toLocaleDateString()})`).join('\n')
+    : '  - No achievements unlocked yet.';
+
+  const currentStreakVal = streakStats && streakStats.currentStreak !== undefined ? streakStats.currentStreak : stats.streak;
+  const longestStreakVal = streakStats && streakStats.longestStreak !== undefined ? streakStats.longestStreak : 0;
+  const totalActiveDaysVal = streakStats && streakStats.totalActiveDays !== undefined ? streakStats.totalActiveDays : 0;
 
   return `You are an expert AI Study Coach analysing a student's learning data and syllabus progress. 
 Provide personalised, actionable insights in the EXACT JSON format specified below.
@@ -445,9 +488,14 @@ STUDENT PROFILE:
 - Name: ${userName || 'Student'}
 - Total study time: ${stats.totalHours} hours across ${stats.totalSessions} sessions
 - Average session length: ${stats.avgSessionMins} minutes
-- Current streak: ${stats.streak} days
+- Current streak: ${currentStreakVal} days
+- Longest streak: ${longestStreakVal} days
+- Total active study days: ${totalActiveDaysVal} days
 - Study consistency: ${stats.consistencyScore}% over last 30 days
 - Overall Semester Syllabus Progress: ${stats.completedActiveChapters}/${stats.totalActiveChapters} Chapters Completed (${stats.overallLmsProgress}%)
+
+EARNED ACHIEVEMENTS / GAMIFICATION BADGES:
+${achievementsList}
 
 ACTIVE SYLLABUS STATUS (SUBJECTS AND CHAPTERS):
 ${lmsOverviewStr}
@@ -470,7 +518,7 @@ Analyse this data and return ONLY valid JSON with this exact structure — no ma
   "weaknesses": ["2-3 specific areas needing improvement based on actual data"],
   "recommendations": ["3-4 specific, actionable steps the student can take this week"],
   "weeklyGoal": "One specific, measurable goal for the next 7 days based on syllabus progress",
-  "motivation": "One powerful, personalised motivational message (2-3 sentences max)",
+  "motivation": "One powerful, personalised motivational message (2-3 sentences max). If they have a high streak or unlocked recent achievements, acknowledge it. If their streak is 0, motivate them to start a new streak.",
   "subjectPriorities": ["2-3 subjects list ordered by highest priority based on lagging chapter completion or low study hours"],
   "chapterRecommendations": ["2-3 specific incomplete chapters that the student should focus on next"],
   "semesterCompletionPrediction": "A detailed, encouraging prediction of when they will finish the remaining syllabus based on their current study hours and chapter completion rate (e.g. 'At your current pace of 5.5 hours/week, you are on track to complete the remaining 12 chapters in 4.5 weeks, right before final exams.')"
@@ -488,7 +536,7 @@ Requirements:
  * analyseWithGemini
  * Runs the full pipeline: analyse data → build prompt → call Gemini → parse response.
  */
-const analyseWithGemini = async (sessions, userName, activeSubjects = [], chapters = []) => {
+const analyseWithGemini = async (sessions, userName, activeSubjects = [], chapters = [], streakStats = {}, achievements = []) => {
   // 1. Calculate all stats from raw sessions and LMS progress
   const stats = compileLmsStats(sessions, activeSubjects, chapters);
 
@@ -501,13 +549,18 @@ const analyseWithGemini = async (sessions, userName, activeSubjects = [], chapte
     };
   }
 
+  // Update stats.streak if streakStats is provided (to use the 15-min threshold streak)
+  if (streakStats && streakStats.currentStreak !== undefined) {
+    stats.streak = streakStats.currentStreak;
+  }
+
   // 3. Check Gemini is initialised
   if (!isAIConfigured()) {
     throw new Error('Gemini AI is not configured. Please set GEMINI_API_KEY in your .env file.');
   }
 
   // 4. Build prompt and call Gemini
-  const prompt = buildPrompt(stats, userName);
+  const prompt = buildPrompt(stats, userName, streakStats, achievements);
 
   let rawText;
   try {
@@ -555,7 +608,7 @@ const analyseWithGemini = async (sessions, userName, activeSubjects = [], chapte
  * chatWithGemini
  * Interactive conversation with the AI Coach.
  */
-const chatWithGemini = async (sessions, userName, message, activeSubjects = [], chapters = []) => {
+const chatWithGemini = async (sessions, userName, message, activeSubjects = [], chapters = [], streakStats = {}, achievements = []) => {
   // 1. Calculate stats to give the coach context
   const stats = compileLmsStats(sessions, activeSubjects, chapters);
 
@@ -569,11 +622,17 @@ The student's name is ${userName || 'Student'}.
       `${sp.name} (${sp.completedChapters}/${sp.totalChapters} chapters, ${sp.studyHours}h)`
     ).join(', ');
 
+    const currentStreakVal = streakStats && streakStats.currentStreak !== undefined ? streakStats.currentStreak : stats.streak;
+    const longestStreakVal = streakStats && streakStats.longestStreak !== undefined ? streakStats.longestStreak : 0;
+    const achievementsStr = achievements.map(a => a.slug).join(', ') || 'None';
+
     contextPrompt += `
 Here is the student's current study and syllabus progress:
 - Total study time: ${stats.totalHours} hours across ${stats.totalSessions} sessions.
 - Average session length: ${stats.avgSessionMins} minutes.
-- Current streak: ${stats.streak} days.
+- Current streak: ${currentStreakVal} days.
+- Longest streak: ${longestStreakVal} days.
+- Unlocked achievements: ${achievementsStr}.
 - Consistency (last 30 days): ${stats.consistencyScore}% consistency.
 - Study Score: ${stats.studyScore}/100.
 - Productivity Score: ${stats.productivityScore}/100.
@@ -587,7 +646,7 @@ The student has not logged any study sessions nor configured any active subjects
   }
 
   contextPrompt += `
-Please respond to the student's message in a helpful, coaching, and motivating tone. Keep your responses concise, friendly, and directly addressing their questions.
+Please respond to the student's message in a helpful, coaching, and motivating tone. Keep your responses concise, friendly, and directly addressing their questions. Feel free to celebrate their study streaks and unlocked achievements if they ask or when it fits the conversation naturally.
 `;
 
   // 3. Call Gemini
