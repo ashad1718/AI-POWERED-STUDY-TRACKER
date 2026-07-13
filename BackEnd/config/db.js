@@ -10,29 +10,38 @@ const mongoose = require('mongoose');
 const connectDB = async () => {
   try {
     let mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/studyai';
-    
+    console.log("MONGO_URI =", process.env.MONGO_URI);
+
     try {
       // Try to connect to primary MongoDB with a short timeout to fail quickly if down
+      console.log("MONGO_URI =", process.env.MONGO_URI);
+      console.log("Connecting to:", mongoUri);
+
       const conn = await mongoose.connect(mongoUri, {
         serverSelectionTimeoutMS: 10000,
       });
       console.log(`✅ MongoDB connected: ${conn.connection.host}`);
-    } catch (err) {
-      console.warn(`⚠️  Failed to connect to primary MongoDB at ${mongoUri}. Starting in-memory MongoDB fallback...`);
-      
+    } catch (e) {
+      console.error("========== MONGODB ERROR ==========");
+      console.error("Name:", e.name);
+      console.error("Message:", e.message);
+      console.error("Stack:", e.stack);
+      console.error("===================================");
+
+      console.warn(`⚠️ Failed to connect to primary MongoDB at ${mongoUri}. Starting in-memory MongoDB fallback...`);
       const { MongoMemoryServer } = require('mongodb-memory-server');
       const mongoServer = await MongoMemoryServer.create({
         instance: {
           dbName: 'studyai',
         },
       });
-      
+
       mongoUri = mongoServer.getUri();
       process.env.MONGO_URI = mongoUri;
-      
+
       const conn = await mongoose.connect(mongoUri);
       console.log(`✅ In-memory MongoDB connected: ${conn.connection.host} (${mongoUri})`);
-      
+
       mongoose.connection.mongoServer = mongoServer;
     }
   } catch (err) {

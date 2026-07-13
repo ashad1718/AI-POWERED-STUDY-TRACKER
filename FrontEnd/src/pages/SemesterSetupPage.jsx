@@ -24,16 +24,21 @@ const SemesterSetupPage = () => {
   const [goalGPA, setGoalGPA] = useState('');
 
   const handleAddSubjectToList = (e) => {
-    e.preventDefault();
-    if (!currentInput.trim()) return;
-    if (newSubjects.includes(currentInput.trim())) {
+    if (e) e.preventDefault();
+    const trimmedInput = currentInput.trim();
+    if (!trimmedInput) {
+      setError('Please enter a subject name first.');
+      return;
+    }
+    if (newSubjects.includes(trimmedInput)) {
       setError('Subject already added to the list.');
       return;
     }
     setError('');
-    setNewSubjects([...newSubjects, currentInput.trim()]);
+    setNewSubjects([...newSubjects, trimmedInput]);
     setCurrentInput('');
   };
+
 
   const handleRemoveSubjectFromList = (name) => {
     setNewSubjects(newSubjects.filter(sub => sub !== name));
@@ -260,7 +265,8 @@ const SemesterSetupPage = () => {
                 className="flex-1 px-4 py-2.5 rounded-xl bg-[#162033] border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-[#5EEAD4] text-sm"
               />
               <button
-                type="submit"
+                type="button"
+                onClick={handleAddSubjectToList}
                 className="px-4 py-2.5 rounded-xl bg-[#5EEAD4] text-[#070B14] font-bold text-sm flex items-center gap-1 hover:opacity-90 transition-all shrink-0"
               >
                 <Plus className="w-4 h-4" />
