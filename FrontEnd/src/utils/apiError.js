@@ -15,7 +15,10 @@ export const getApiErrorMessage = (error, fallback = 'Something went wrong. Plea
   }
 
   if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
-    return 'Cannot reach the server. Make sure the backend is running on http://localhost:5000.';
+    const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+    return isLocal
+      ? 'Cannot reach the server. Make sure the backend is running on http://localhost:5000.'
+      : 'Cannot reach the server. Please check your internet connection or try again later.';
   }
 
   if (error.message && !error.message.startsWith('Request failed')) {

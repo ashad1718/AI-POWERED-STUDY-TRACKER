@@ -1,12 +1,20 @@
 import axios from 'axios';
 import { refreshAccessToken } from './api';
 
+const getGeminiBaseURL = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.replace('/v1', '');
+  }
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    return '/api';
+  }
+  return 'http://localhost:5000/api';
+};
+
 // Dedicated Axios instance for the Gemini endpoint.
 // Uses root API URL (without /v1) since Gemini route is at /api/ai/analyze
 const geminiApi = axios.create({
-  baseURL:         import.meta.env.VITE_API_URL
-    ? import.meta.env.VITE_API_URL.replace('/v1', '')  // strip /v1 → http://localhost:5000/api
-    : 'http://localhost:5000/api',
+  baseURL:         getGeminiBaseURL(),
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 });

@@ -1,8 +1,16 @@
 import axios from 'axios';
 
+const getBaseURL = () => {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    return '/api/v1';
+  }
+  return 'http://localhost:5000/api/v1';
+};
+
 // ─── Base Instance ─────────────────────────────────────────────────────────────
 const api = axios.create({
-  baseURL:          import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1',
+  baseURL:          getBaseURL(),
   withCredentials:  true,   // sends httpOnly refresh token cookie automatically
   headers: { 'Content-Type': 'application/json' },
 });
@@ -37,7 +45,7 @@ export const refreshAccessToken = async () => {
   refreshPromise = (async () => {
     try {
       const { data } = await axios.post(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'}/auth/refresh`,
+        `${getBaseURL()}/auth/refresh`,
         {},
         { withCredentials: true }
       );
