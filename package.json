@@ -9,7 +9,8 @@
     "dev:backend": "npm run dev --prefix BackEnd",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "start:backend": "npm run start --prefix BackEnd",
-    "start": "concurrently \"npm run start:backend\" \"npm run dev:frontend\""
+    "start": "concurrently \"npm run start:backend\" \"npm run dev:frontend\"",
+    "build": "npm install --prefix FrontEnd && npm install --prefix BackEnd --omit=dev && npm run build --prefix FrontEnd -- --outDir ../dist"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
