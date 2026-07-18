@@ -3,7 +3,7 @@ import axios from 'axios';
 const getBaseURL = () => {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-    return '/api/v1';
+    return 'https://ai-powered-study-tracker.vercel.app/api/v1';
   }
   return 'http://localhost:5000/api/v1';
 };
