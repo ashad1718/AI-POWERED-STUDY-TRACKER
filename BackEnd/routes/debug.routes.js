@@ -2,7 +2,7 @@
 
 const express = require('express');
 const router  = express.Router();
-const User    = require('../models/User');
+const { prisma, toPublicJSON, comparePassword } = require('../config/prisma');
 
 // Middleware: restrict debug routes strictly to development environment
 router.use((req, res, next) => {
@@ -21,14 +21,13 @@ router.use((req, res, next) => {
 // GET /api/debug/users
 router.get('/users', async (req, res, next) => {
   try {
-    const mongoose = require('mongoose');
-    const userCount = await User.countDocuments();
-    const users = await User.find({}, 'email').lean();
+    const userCount = await prisma.user.count();
+    const users = await prisma.user.findMany({ select: { email: true } });
     res.status(200).json({
       success: true,
       data: {
-        databaseName: mongoose.connection.name,
-        collectionName: User.collection.name,
+        databaseName: 'Neon PostgreSQL',
+        collectionName: 'User',
         userCount,
         registeredEmails: users.map(u => u.email)
       }
@@ -41,12 +40,12 @@ router.get('/users', async (req, res, next) => {
 // DELETE /api/debug/clear-users
 router.delete('/clear-users', async (req, res, next) => {
   try {
-    const result = await User.deleteMany({});
+    const result = await prisma.user.deleteMany({});
     res.status(200).json({
       success: true,
       data: {
         message: 'All registered users cleared successfully.',
-        deletedCount: result.deletedCount
+        deletedCount: result.count
       }
     });
   } catch (err) {
@@ -62,7 +61,7 @@ router.post('/check-user', async (req, res, next) => {
       return res.status(400).json({ success: false, error: 'Email is required' });
     }
     const normalizedEmail = email.toLowerCase().trim();
-    const user = await User.findOne({ email: normalizedEmail }).select('+password');
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (!user) {
       return res.status(200).json({
         success: true,
@@ -92,7 +91,7 @@ router.post('/test-login', async (req, res, next) => {
       return res.status(400).json({ success: false, error: 'Email and password are required' });
     }
     const normalizedEmail = email.toLowerCase().trim();
-    const user = await User.findOne({ email: normalizedEmail }).select('+password');
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (!user) {
       return res.status(200).json({
         success: true,
@@ -105,8 +104,7 @@ router.post('/test-login', async (req, res, next) => {
       });
     }
 
-    const bcrypt = require('bcryptjs');
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await comparePassword(password, user.password);
     if (!isMatch) {
       return res.status(200).json({
         success: true,
@@ -153,9 +151,6 @@ router.post('/test-login', async (req, res, next) => {
 // GET /api/debug/auth-status
 router.get('/auth-status', async (req, res, next) => {
   try {
-    const mongoose = require('mongoose');
-    const User = require('../models/User');
-
     let loggedInUser = null;
     let authStatus = 'Not logged in';
 
@@ -168,9 +163,9 @@ router.get('/auth-status', async (req, res, next) => {
       const { verifyAccessToken } = require('../config/jwt');
       try {
         const decoded = verifyAccessToken(token);
-        const user = await User.findById(decoded.id);
+        const user = await prisma.user.findUnique({ where: { id: decoded.id } });
         if (user) {
-          loggedInUser = user.toPublicJSON();
+          loggedInUser = toPublicJSON(user);
           authStatus = 'Authenticated';
         } else {
           authStatus = 'Token valid but user not found';
@@ -180,12 +175,12 @@ router.get('/auth-status', async (req, res, next) => {
       }
     }
 
-    const userCount = await User.countDocuments();
+    const userCount = await prisma.user.count();
     res.status(200).json({
       success: true,
       data: {
-        databaseName: mongoose.connection.name,
-        collectionName: User.collection.name,
+        databaseName: 'Neon PostgreSQL',
+        collectionName: 'User',
         userCount,
         loggedInUser,
         authStatus,

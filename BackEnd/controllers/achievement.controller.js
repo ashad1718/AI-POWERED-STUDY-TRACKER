@@ -1,12 +1,14 @@
 'use strict';
 
-const Achievement        = require('../models/Achievement');
-const { ACHIEVEMENT_DEFINITIONS } = require('../models/Achievement');
+const { prisma } = require('../config/prisma');
+const { ACHIEVEMENT_DEFINITIONS } = require('../config/achievements');
 const asyncHandler       = require('../utils/asyncHandler');
 
 // GET /api/v1/achievements
 exports.getAchievements = asyncHandler(async (req, res) => {
-  const earned      = await Achievement.find({ userId: req.user.id });
+  const earned      = await prisma.achievement.findMany({
+    where: { userId: req.user.id },
+  });
   const earnedSlugs = new Map(earned.map((a) => [a.slug, a.createdAt]));
 
   const achievements = ACHIEVEMENT_DEFINITIONS.map((def) => ({
@@ -19,10 +21,12 @@ exports.getAchievements = asyncHandler(async (req, res) => {
   const unnotified = earned.filter((a) => a.notified === false);
 
   if (unnotified.length > 0) {
-    await Achievement.updateMany(
-      { _id: { $in: unnotified.map((a) => a._id) } },
-      { notified: true }
-    );
+    await prisma.achievement.updateMany({
+      where: {
+        id: { in: unnotified.map((a) => a.id) },
+      },
+      data: { notified: true },
+    });
   }
 
   const newlyUnlocked = unnotified.map((a) => {
@@ -43,4 +47,3 @@ exports.getAchievements = asyncHandler(async (req, res) => {
     },
   });
 });
-

@@ -1,9 +1,6 @@
 'use strict';
 
-const Exam         = require('../models/Exam');
-const Subject      = require('../models/Subject');
-const Chapter      = require('../models/Chapter');
-const Session      = require('../models/Session');
+const { prisma } = require('../config/prisma');
 const AppError     = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
 const { generateExamInsightsWithGemini } = require('../services/gemini.service');
@@ -18,22 +15,31 @@ exports.createExam = asyncHandler(async (req, res) => {
   }
 
   // Verify subject exists and belongs to the user
-  const subject = await Subject.findOne({ _id: subjectId, userId, isDeleted: false });
+  const subject = await prisma.subject.findFirst({
+    where: { id: subjectId, userId, isDeleted: false },
+  });
   if (!subject) {
     throw new AppError('Subject not found or does not belong to you.', 404);
   }
 
   // Create or Update (Upsert) the exam date
-  const exam = await Exam.findOneAndUpdate(
-    { userId, subjectId },
-    { date: new Date(date) },
-    { new: true, upsert: true, runValidators: true }
-  );
+  const exam = await prisma.exam.upsert({
+    where: {
+      userId_subjectId: { userId, subjectId },
+    },
+    update: { date: new Date(date) },
+    create: { userId, subjectId, date: new Date(date) },
+  });
+
+  const formattedExam = {
+    ...exam,
+    _id: exam.id,
+  };
 
   res.status(201).json({
     success: true,
     message: 'Exam date saved successfully.',
-    data: exam,
+    data: formattedExam,
   });
 });
 
@@ -47,20 +53,27 @@ exports.updateExam = asyncHandler(async (req, res) => {
     throw new AppError('Exam date is required.', 400);
   }
 
-  const exam = await Exam.findOneAndUpdate(
-    { _id: examId, userId },
-    { date: new Date(date) },
-    { new: true, runValidators: true }
-  );
-
-  if (!exam) {
+  const existingExam = await prisma.exam.findFirst({
+    where: { id: examId, userId },
+  });
+  if (!existingExam) {
     throw new AppError('Exam entry not found.', 404);
   }
+
+  const exam = await prisma.exam.update({
+    where: { id: examId },
+    data: { date: new Date(date) },
+  });
+
+  const formattedExam = {
+    ...exam,
+    _id: exam.id,
+  };
 
   res.status(200).json({
     success: true,
     message: 'Exam date updated successfully.',
-    data: exam,
+    data: formattedExam,
   });
 });
 
@@ -69,10 +82,16 @@ exports.deleteExam = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const examId = req.params.id;
 
-  const exam = await Exam.findOneAndDelete({ _id: examId, userId });
-  if (!exam) {
+  const existingExam = await prisma.exam.findFirst({
+    where: { id: examId, userId },
+  });
+  if (!existingExam) {
     throw new AppError('Exam entry not found.', 404);
   }
+
+  await prisma.exam.delete({
+    where: { id: examId },
+  });
 
   res.status(200).json({
     success: true,
@@ -86,30 +105,39 @@ exports.getPredictions = asyncHandler(async (req, res) => {
   const userName = req.user.name;
 
   // 1. Fetch active subjects
-  const activeSubjects = await Subject.find({
-    userId,
-    active: true,
-    isArchived: false,
-    isDeleted: false,
-  }).sort({ order: 1 }).lean();
+  const activeSubjects = await prisma.subject.findMany({
+    where: {
+      userId,
+      active: true,
+      isArchived: false,
+      isDeleted: false,
+    },
+    orderBy: { order: 'asc' },
+  });
 
-  const activeSubjectIds = activeSubjects.map(s => s._id);
+  const activeSubjectIds = activeSubjects.map(s => s.id);
 
   // 2. Fetch non-deleted chapters for these subjects
-  const chapters = await Chapter.find({
-    userId,
-    subjectId: { $in: activeSubjectIds },
-    isDeleted: false,
-  }).lean();
+  const chapters = await prisma.chapter.findMany({
+    where: {
+      userId,
+      subjectId: { in: activeSubjectIds },
+      isDeleted: false,
+    },
+  });
 
   // 3. Fetch all study sessions
-  const sessions = await Session.find({ userId }).lean();
+  const sessions = await prisma.session.findMany({
+    where: { userId },
+  });
 
   // 4. Fetch all exams
-  const exams = await Exam.find({ userId }).lean();
+  const exams = await prisma.exam.findMany({
+    where: { userId },
+  });
   const examMap = {};
   exams.forEach(e => {
-    examMap[e.subjectId.toString()] = e;
+    examMap[e.subjectId] = e;
   });
 
   // ─── Pace Calculations ───
@@ -136,15 +164,15 @@ exports.getPredictions = asyncHandler(async (req, res) => {
   const subjectTimeMap = {};
   sessions.forEach(s => {
     if (s.subjectId) {
-      const sId = s.subjectId.toString();
+      const sId = s.subjectId;
       subjectTimeMap[sId] = (subjectTimeMap[sId] || 0) + s.duration;
     }
   });
 
   // Calculate prediction for each subject
   const predictions = activeSubjects.map(subject => {
-    const subId = subject._id.toString();
-    const subChapters = chapters.filter(c => c.subjectId.toString() === subId);
+    const subId = subject.id;
+    const subChapters = chapters.filter(c => c.subjectId === subId);
     
     const totalChaps = subChapters.length;
     const completedChaps = subChapters.filter(c => c.completed).length;
@@ -153,7 +181,7 @@ exports.getPredictions = asyncHandler(async (req, res) => {
 
     const exam = examMap[subId];
     const examDate = exam ? exam.date : null;
-    const examId = exam ? exam._id : null;
+    const examId = exam ? exam.id : null;
 
     // Time share fraction
     let fraction = 0;
@@ -238,7 +266,7 @@ exports.getPredictions = asyncHandler(async (req, res) => {
     // Default time per chapter is 120 mins
     let timePerChapter = 120;
     const subId = p.subjectId;
-    const subChapters = chapters.filter(c => c.subjectId.toString() === subId);
+    const subChapters = chapters.filter(c => c.subjectId === subId);
     const completedForThisSub = subChapters.filter(c => c.completed);
     const subMinutes = subjectTimeMap[subId] || 0;
     

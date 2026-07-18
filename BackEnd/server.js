@@ -3,10 +3,9 @@
 
 require('dotenv').config();
 
-const mongoose              = require('mongoose');
-const connectDB             = require('./config/db');
+const { prisma }            = require('./config/prisma');
 const app                   = require('./app');
-const { initGemini }        = require('./services/gemini.service');  // ← NEW
+const { initGemini }        = require('./services/gemini.service');
 
 process.on('uncaughtException', (err) => {
   console.error('💥 UNCAUGHT EXCEPTION — shutting down...');
@@ -17,10 +16,17 @@ process.on('uncaughtException', (err) => {
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
-  await connectDB();
+  // Verify connection to Neon DB
+  try {
+    await prisma.$connect();
+    console.log('✅ Connected to Neon PostgreSQL database.');
+  } catch (err) {
+    console.error('💥 Failed to connect to database:', err.message);
+    process.exit(1);
+  }
 
   // Initialise Gemini AI (non-blocking — server still starts if key is missing)
-  initGemini();   // ← NEW
+  initGemini();
 
   const server = app.listen(PORT, () => {
     console.log(`🚀 StudyAI API running on port ${PORT}`);
@@ -37,7 +43,7 @@ const startServer = async () => {
   process.on('SIGTERM', () => {
     console.log('📴 SIGTERM — shutting down gracefully...');
     server.close(async () => {
-      await mongoose.connection.close();
+      await prisma.$disconnect();
       process.exit(0);
     });
   });
@@ -45,7 +51,7 @@ const startServer = async () => {
   process.on('SIGINT', () => {
     console.log('\n📴 SIGINT — shutting down...');
     server.close(async () => {
-      await mongoose.connection.close();
+      await prisma.$disconnect();
       process.exit(0);
     });
   });

@@ -1,16 +1,16 @@
 'use strict';
 
-const mongoose     = require('mongoose');
-const Session      = require('../models/Session');
-const Chapter      = require('../models/Chapter');
+const { prisma } = require('../config/prisma');
 const asyncHandler = require('../utils/asyncHandler');
-const { calculateStreak, calculateConsistencyScore, calculateStreakStats } = require('../services/streak.service');
+const { calculateConsistencyScore, calculateStreakStats } = require('../services/streak.service');
 const { getWeekDays, DAY_NAMES }                     = require('../utils/dateHelpers');
 
 // ─── GET /api/v1/stats/overview ───────────────────────────────────────────────
 exports.getOverview = asyncHandler(async (req, res) => {
   console.log('[DASHBOARD] Analytics refreshed');
-  const sessions = await Session.find({ userId: req.user.id });
+  const sessions = await prisma.session.findMany({
+    where: { userId: req.user.id },
+  });
   console.log('[ANALYTICS] Sessions Found:', sessions.length);
 
   const totalMinutes       = sessions.reduce((s, x) => s + x.duration, 0);
@@ -43,7 +43,6 @@ exports.getWeekly = asyncHandler(async (req, res) => {
   console.log('[DASHBOARD] Analytics refreshed');
   
   // Support ?week=YYYY-MM-DD to query a specific week; defaults to current week
-  // Timezone-safe local parsing:
   const parseLocalWeek = (weekStr) => {
     if (!weekStr) return new Date();
     const parts = weekStr.split('-');
@@ -57,9 +56,11 @@ exports.getWeekly = asyncHandler(async (req, res) => {
   const weekDays  = getWeekDays(weekStart); // ["2026-06-02", ..., "2026-06-08"]
 
   // Fetch all sessions in this date range
-  const sessions = await Session.find({
-    userId: req.user.id,
-    date:   { $gte: weekDays[0], $lte: weekDays[6] },
+  const sessions = await prisma.session.findMany({
+    where: {
+      userId: req.user.id,
+      date: { gte: weekDays[0], lte: weekDays[6] },
+    },
   });
   console.log('[ANALYTICS] Sessions Found:', sessions.length);
 
@@ -82,21 +83,23 @@ exports.getWeekly = asyncHandler(async (req, res) => {
 // ─── GET /api/v1/stats/subjects ───────────────────────────────────────────────
 exports.getSubjects = asyncHandler(async (req, res) => {
   console.log('[DASHBOARD] Analytics refreshed');
-  // MongoDB aggregation: group by subject, sum durations
-  const results = await Session.aggregate([
-    { $match: { userId: new mongoose.Types.ObjectId(req.user.id) } },
-    {
-      $group: {
-        _id:        { $toLower: '$subject' },
-        name:       { $first: '$subject' },
-        totalMins:  { $sum: '$duration' },
-      },
+  
+  // Prisma aggregation: group by subject, sum durations
+  const results = await prisma.session.groupBy({
+    by: ['subject'],
+    where: { userId: req.user.id },
+    _sum: {
+      duration: true,
     },
-    { $sort: { totalMins: -1 } },
-  ]);
+  });
   console.log('[ANALYTICS] Subjects Found:', results.length);
 
-  const pieData = results.map(({ name, totalMins }) => ({
+  const mappedResults = results.map(r => ({
+    name: r.subject,
+    totalMins: r._sum.duration || 0,
+  })).sort((a, b) => b.totalMins - a.totalMins);
+
+  const pieData = mappedResults.map(({ name, totalMins }) => ({
     name,
     value: Math.round((totalMins / 60) * 10) / 10, // hours, 1dp
   }));
@@ -113,10 +116,16 @@ exports.getHeatmap = asyncHandler(async (req, res) => {
   const date365AgoStr = date365Ago.toISOString().split('T')[0];
 
   // Fetch all sessions in the last 365 days
-  const sessions = await Session.find({
-    userId: req.user.id,
-    date: { $gte: date365AgoStr },
-  }).select('date duration').lean();
+  const sessions = await prisma.session.findMany({
+    where: {
+      userId: req.user.id,
+      date: { gte: date365AgoStr },
+    },
+    select: {
+      date: true,
+      duration: true,
+    },
+  });
 
   // Group by date -> sum minutes
   const dayMap = {};
@@ -128,12 +137,17 @@ exports.getHeatmap = asyncHandler(async (req, res) => {
   });
 
   // Fetch all chapters completed in the last 365 days
-  const chapters = await Chapter.find({
-    userId: req.user.id,
-    completed: true,
-    isDeleted: false,
-    updatedAt: { $gte: date365Ago },
-  }).select('updatedAt').lean();
+  const chapters = await prisma.chapter.findMany({
+    where: {
+      userId: req.user.id,
+      completed: true,
+      isDeleted: false,
+      updatedAt: { gte: date365Ago },
+    },
+    select: {
+      updatedAt: true,
+    },
+  });
 
   chapters.forEach((c) => {
     const dateStr = c.updatedAt.toISOString().split('T')[0];
@@ -145,4 +159,3 @@ exports.getHeatmap = asyncHandler(async (req, res) => {
 
   res.status(200).json({ success: true, data: dayMap });
 });
-

@@ -1,8 +1,7 @@
 'use strict';
 
-const mongoose     = require('mongoose');
+const { prisma, toPublicJSON, comparePassword, hashPassword } = require('../config/prisma');
 const jwt          = require('jsonwebtoken');
-const User         = require('../models/User');
 const AppError     = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
 const {
@@ -21,19 +20,23 @@ const sendTokenResponse = (user, statusCode, res) => {
   const accessToken  = signAccessToken(user);
   const refreshToken = signRefreshToken(user);
 
-  // Save refresh token hash in DB for rotation validation
-  user.refreshToken = refreshToken;
-  user.save({ validateBeforeSave: false }); // fire-and-forget, don't await
+  // Save refresh token hash in DB for rotation validation (fire-and-forget)
+  prisma.user.update({
+    where: { id: user.id },
+    data: { refreshToken },
+  }).catch((err) => {
+    console.error(`[AUTH] Failed to save refresh token for user ${user.email}: ${err.message}`);
+  });
 
   // Set refresh token as httpOnly cookie
   res.cookie('refreshToken', refreshToken, refreshCookieOptions);
 
-  console.log(`[AUTH] Tokens issued for user: ${user.email} (ID: ${user._id})`);
+  console.log(`[AUTH] Tokens issued for user: ${user.email} (ID: ${user.id})`);
 
   res.status(statusCode).json({
     success: true,
     data: {
-      user:        user.toPublicJSON(),
+      user:        toPublicJSON(user),
       accessToken,
     },
   });
@@ -52,7 +55,7 @@ exports.register = asyncHandler(async (req, res) => {
   // Check if email already in use
   let existing;
   try {
-    existing = await User.findOne({ email: normalizedEmail });
+    existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
   } catch (dbErr) {
     console.error(`[REGISTER] Database failure during email lookup: ${dbErr.message}`);
     throw new AppError('Database failure. Please try again.', 500, 'DATABASE_FAILURE');
@@ -65,7 +68,14 @@ exports.register = asyncHandler(async (req, res) => {
 
   let user;
   try {
-    user = await User.create({ name, email: normalizedEmail, password });
+    const hashedPassword = await hashPassword(password);
+    user = await prisma.user.create({
+      data: {
+        name,
+        email: normalizedEmail,
+        password: hashedPassword,
+      },
+    });
   } catch (dbErr) {
     console.error(`[REGISTER] Database failure during user creation: ${dbErr.message}`);
     throw new AppError('Database failure saving user. Please try again.', 500, 'DATABASE_FAILURE');
@@ -73,7 +83,7 @@ exports.register = asyncHandler(async (req, res) => {
 
   console.log(`[REGISTER] User created`);
   console.log(`[REGISTER] Email saved: ${user.email}`);
-  console.log(`[REGISTER] User ID: ${user._id}`);
+  console.log(`[REGISTER] User ID: ${user.id}`);
 
   sendTokenResponse(user, 201, res);
 });
@@ -90,15 +100,11 @@ exports.login = asyncHandler(async (req, res) => {
   const normalizedEmail = email.toLowerCase().trim();
   console.log(`[LOGIN] Normalized email: ${normalizedEmail}`);
 
-  console.log(`[LOGIN] Database connected: ${mongoose.connection.readyState === 1}`);
-  console.log(`[LOGIN] Database name: ${mongoose.connection.name}`);
-  console.log(`[LOGIN] Collection name: ${User.collection.name}`);
-
   console.log(`[LOGIN] User lookup started`);
 
   let user;
   try {
-    user = await User.findOne({ email: normalizedEmail }).select('+password');
+    user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
   } catch (dbErr) {
     console.error(`[LOGIN] Database failure during user search: ${dbErr.message}`);
     throw new AppError(`Database lookup failed: ${dbErr.message}`, 500, 'DATABASE_FAILURE');
@@ -113,7 +119,7 @@ exports.login = asyncHandler(async (req, res) => {
 
   let isMatch = false;
   try {
-    isMatch = await user.comparePassword(password);
+    isMatch = await comparePassword(password, user.password);
   } catch (err) {
     console.error(`[LOGIN] Error comparing passwords: ${err.message}`);
     throw new AppError(`Error verifying credentials: ${err.message}`, 500, 'CRYPTO_ERROR');
@@ -131,9 +137,11 @@ exports.login = asyncHandler(async (req, res) => {
   console.log(`[LOGIN] JWT generated`);
 
   // Save refresh token hash in DB for rotation validation
-  user.refreshToken = refreshToken;
   try {
-    await user.save({ validateBeforeSave: false });
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { refreshToken },
+    });
   } catch (saveErr) {
     console.error(`[LOGIN] JWT failure (failed to save refresh token): ${saveErr.message}`);
     throw new AppError(`JWT failure (failed to save refresh token): ${saveErr.message}`, 500, 'JWT_FAILURE');
@@ -147,7 +155,7 @@ exports.login = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     data: {
-      user:        user.toPublicJSON(),
+      user:        toPublicJSON(user),
       accessToken,
     },
   });
@@ -156,7 +164,10 @@ exports.login = asyncHandler(async (req, res) => {
 // ─── POST /api/v1/auth/logout ─────────────────────────────────────────────────
 exports.logout = asyncHandler(async (req, res) => {
   // Clear refresh token from DB
-  await User.findByIdAndUpdate(req.user.id, { refreshToken: null });
+  await prisma.user.update({
+    where: { id: req.user.id },
+    data: { refreshToken: null },
+  });
 
   // Clear the cookie
   res.clearCookie('refreshToken', clearCookieOptions);
@@ -183,7 +194,10 @@ exports.refresh = asyncHandler(async (req, res) => {
     try {
       const parsed = jwt.decode(token);
       if (parsed && parsed.id) {
-        await User.findByIdAndUpdate(parsed.id, { refreshToken: null });
+        await prisma.user.update({
+          where: { id: parsed.id },
+          data: { refreshToken: null },
+        });
         console.log(`[AUTH] Revoked invalid refresh token for user ID: ${parsed.id}`);
       }
     } catch (decodeErr) {
@@ -194,12 +208,14 @@ exports.refresh = asyncHandler(async (req, res) => {
   }
 
   // Find user and validate token matches what's stored
-  const user = await User.findById(decoded.id).select('+refreshToken');
+  const user = await prisma.user.findUnique({ where: { id: decoded.id } });
   if (!user || user.refreshToken !== token) {
     console.error(`[AUTH] Refresh failed: Token mismatch or user not found. User ID: ${decoded?.id}`);
     if (user) {
-      user.refreshToken = null;
-      await user.save({ validateBeforeSave: false });
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { refreshToken: null },
+      });
       console.log(`[AUTH] Revoked mismatched refresh token for user: ${user.email}`);
     }
     res.clearCookie('refreshToken', clearCookieOptions);
@@ -208,7 +224,7 @@ exports.refresh = asyncHandler(async (req, res) => {
 
   // Issue new access token
   const newAccessToken = signAccessToken(user);
-  console.log(`[AUTH] Refresh successful. New access token issued for user: ${user.email} (ID: ${user._id})`);
+  console.log(`[AUTH] Refresh successful. New access token issued for user: ${user.email} (ID: ${user.id})`);
 
   res.status(200).json({
     success: true,
@@ -218,7 +234,7 @@ exports.refresh = asyncHandler(async (req, res) => {
 
 // ─── GET /api/v1/auth/me ──────────────────────────────────────────────────────
 exports.getMe = asyncHandler(async (req, res) => {
-  const publicUser = req.user.toPublicJSON();
+  const publicUser = toPublicJSON(req.user);
   res.status(200).json({
     success: true,
     data: {
@@ -241,7 +257,7 @@ exports.forgotPassword = asyncHandler(async (req, res) => {
   }
 
   const normalizedEmail = email.toLowerCase().trim();
-  const user = await User.findOne({ email: normalizedEmail });
+  const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
 
   if (!user) {
     console.warn(`[OTP] Forgot password lookup failed: Email not found: ${normalizedEmail}`);
@@ -251,10 +267,14 @@ exports.forgotPassword = asyncHandler(async (req, res) => {
   const otp = generateOTP();
   const hashedOtp = await hashOTP(otp);
 
-  user.otpHash = hashedOtp;
-  user.otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-  user.otpAttempts = 0;
-  await user.save({ validateBeforeSave: false });
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      otpHash: hashedOtp,
+      otpExpiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+      otpAttempts: 0,
+    },
+  });
 
   console.log(`[OTP] Generated`);
   console.log(`[DEBUG OTP] Generated OTP: ${otp}`);
@@ -279,7 +299,7 @@ exports.verifyOtp = asyncHandler(async (req, res) => {
   }
 
   const normalizedEmail = email.toLowerCase().trim();
-  const user = await User.findOne({ email: normalizedEmail }).select('+otpHash');
+  const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
 
   if (!user) {
     throw new AppError('No account found with this email.', 404, 'EMAIL_NOT_FOUND');
@@ -294,28 +314,39 @@ exports.verifyOtp = asyncHandler(async (req, res) => {
   }
 
   if (user.otpAttempts >= 5) {
-    user.otpHash = null;
-    user.otpExpiresAt = null;
-    user.otpAttempts = 0;
-    await user.save({ validateBeforeSave: false });
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        otpHash: null,
+        otpExpiresAt: null,
+        otpAttempts: 0,
+      },
+    });
     console.warn(`[OTP] Verification Failed: Maximum attempts exceeded for: ${normalizedEmail}`);
     throw new AppError('Maximum verification attempts exceeded. Please request a new code.', 400, 'OTP_MAX_ATTEMPTS');
   }
 
   const isMatch = await compareOTP(otp, user.otpHash);
   if (!isMatch) {
-    user.otpAttempts += 1;
-    console.warn(`[OTP] Verification Failed: Incorrect OTP for ${normalizedEmail}. Attempt ${user.otpAttempts}/5`);
+    const updatedAttempts = user.otpAttempts + 1;
+    console.warn(`[OTP] Verification Failed: Incorrect OTP for ${normalizedEmail}. Attempt ${updatedAttempts}/5`);
     
-    if (user.otpAttempts >= 5) {
-      user.otpHash = null;
-      user.otpExpiresAt = null;
-      user.otpAttempts = 0;
-      await user.save({ validateBeforeSave: false });
+    if (updatedAttempts >= 5) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          otpHash: null,
+          otpExpiresAt: null,
+          otpAttempts: 0,
+        },
+      });
       throw new AppError('Maximum verification attempts exceeded. Please request a new code.', 400, 'OTP_MAX_ATTEMPTS');
     }
     
-    await user.save({ validateBeforeSave: false });
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { otpAttempts: updatedAttempts },
+    });
     throw new AppError('Invalid verification code.', 400, 'INVALID_OTP');
   }
 
@@ -336,7 +367,7 @@ exports.resendOtp = asyncHandler(async (req, res) => {
   }
 
   const normalizedEmail = email.toLowerCase().trim();
-  const user = await User.findOne({ email: normalizedEmail });
+  const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
 
   if (!user) {
     throw new AppError('No account found with this email.', 404, 'EMAIL_NOT_FOUND');
@@ -345,10 +376,14 @@ exports.resendOtp = asyncHandler(async (req, res) => {
   const otp = generateOTP();
   const hashedOtp = await hashOTP(otp);
 
-  user.otpHash = hashedOtp;
-  user.otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-  user.otpAttempts = 0;
-  await user.save({ validateBeforeSave: false });
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      otpHash: hashedOtp,
+      otpExpiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+      otpAttempts: 0,
+    },
+  });
 
   console.log(`[OTP] Generated`);
   console.log(`[DEBUG OTP] Generated OTP: ${otp}`);
@@ -373,7 +408,7 @@ exports.resetPassword = asyncHandler(async (req, res) => {
   }
 
   const normalizedEmail = email.toLowerCase().trim();
-  const user = await User.findOne({ email: normalizedEmail }).select('+otpHash');
+  const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
 
   if (!user) {
     throw new AppError('No account found with this email.', 404, 'EMAIL_NOT_FOUND');
@@ -388,24 +423,35 @@ exports.resetPassword = asyncHandler(async (req, res) => {
   }
 
   if (user.otpAttempts >= 5) {
-    user.otpHash = null;
-    user.otpExpiresAt = null;
-    user.otpAttempts = 0;
-    await user.save({ validateBeforeSave: false });
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        otpHash: null,
+        otpExpiresAt: null,
+        otpAttempts: 0,
+      },
+    });
     throw new AppError('Maximum verification attempts exceeded. Please request a new code.', 400, 'OTP_MAX_ATTEMPTS');
   }
 
   const isMatch = await compareOTP(otp, user.otpHash);
   if (!isMatch) {
-    user.otpAttempts += 1;
-    if (user.otpAttempts >= 5) {
-      user.otpHash = null;
-      user.otpExpiresAt = null;
-      user.otpAttempts = 0;
-      await user.save({ validateBeforeSave: false });
+    const updatedAttempts = user.otpAttempts + 1;
+    if (updatedAttempts >= 5) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          otpHash: null,
+          otpExpiresAt: null,
+          otpAttempts: 0,
+        },
+      });
       throw new AppError('Maximum verification attempts exceeded. Please request a new code.', 400, 'OTP_MAX_ATTEMPTS');
     }
-    await user.save({ validateBeforeSave: false });
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { otpAttempts: updatedAttempts },
+    });
     throw new AppError('Invalid verification code.', 400, 'INVALID_OTP');
   }
 
@@ -413,13 +459,17 @@ exports.resetPassword = asyncHandler(async (req, res) => {
   assertStrongPassword(newPassword);
 
   // Update password and clear OTP states & refresh token
-  user.password = newPassword;
-  user.otpHash = null;
-  user.otpExpiresAt = null;
-  user.otpAttempts = 0;
-  user.refreshToken = null;
-
-  await user.save(); // pre-save hook will hash the password
+  const hashedPassword = await hashPassword(newPassword);
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      password: hashedPassword,
+      otpHash: null,
+      otpExpiresAt: null,
+      otpAttempts: 0,
+      refreshToken: null,
+    },
+  });
 
   console.log(`[PASSWORD] Updated Successfully`);
 

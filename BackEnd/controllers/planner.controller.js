@@ -1,9 +1,6 @@
 'use strict';
 
-const Session      = require('../models/Session');
-const Subject      = require('../models/Subject');
-const Chapter      = require('../models/Chapter');
-const Exam         = require('../models/Exam');
+const { prisma } = require('../config/prisma');
 const AppError     = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
 const { generateDailyPlanWithGemini, generateWeeklyPlanWithGemini } = require('../services/gemini.service');
@@ -37,23 +34,34 @@ exports.getDailyPlan = asyncHandler(async (req, res) => {
   }
 
   // Fetch all user sessions, active subjects, chapters, and exams
-  const sessions = await Session.find({ userId }).sort({ date: -1 }).lean();
+  const sessions = await prisma.session.findMany({
+    where: { userId },
+    orderBy: { date: 'desc' },
+  });
 
-  const activeSubjects = await Subject.find({
-    userId,
-    active: true,
-    isArchived: false,
-    isDeleted: false,
-  }).sort({ order: 1 }).lean();
+  const activeSubjects = await prisma.subject.findMany({
+    where: {
+      userId,
+      active: true,
+      isArchived: false,
+      isDeleted: false,
+    },
+    orderBy: { order: 'asc' },
+  });
 
-  const activeSubjectIds = activeSubjects.map(s => s._id);
-  const chapters = await Chapter.find({
-    userId,
-    subjectId: { $in: activeSubjectIds },
-    isDeleted: false,
-  }).sort({ order: 1 }).lean();
+  const activeSubjectIds = activeSubjects.map(s => s.id);
+  const chapters = await prisma.chapter.findMany({
+    where: {
+      userId,
+      subjectId: { in: activeSubjectIds },
+      isDeleted: false,
+    },
+    orderBy: { order: 'asc' },
+  });
 
-  const exams = await Exam.find({ userId }).lean();
+  const exams = await prisma.exam.findMany({
+    where: { userId },
+  });
 
   // If no subjects, return empty plan structure
   if (activeSubjects.length === 0) {
@@ -64,16 +72,23 @@ exports.getDailyPlan = asyncHandler(async (req, res) => {
         prioritySubjects: [],
         priorityChapters: [],
         dailyFocusTip: "Please configure subjects and chapters to receive daily plans.",
-        isEmpty: true
-      }
+        isEmpty: true,
+      },
     });
   }
 
   let plan;
   try {
-    plan = await generateDailyPlanWithGemini(sessions, userName, activeSubjects, chapters, exams);
-    const User = require('../models/User');
-    await User.findByIdAndUpdate(userId, { hasUsedPlanner: true });
+    // Map objects for gemini service compatibility
+    const compatibleSubjects = activeSubjects.map(s => ({ ...s, _id: s.id }));
+    const compatibleChapters = chapters.map(c => ({ ...c, _id: c.id }));
+    const compatibleExams = exams.map(e => ({ ...e, _id: e.id }));
+
+    plan = await generateDailyPlanWithGemini(sessions, userName, compatibleSubjects, compatibleChapters, compatibleExams);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { hasUsedPlanner: true },
+    });
   } catch (err) {
     throw new AppError(err.message || 'AI Planner could not generate a valid study plan. Retrying...', 503, 'AI_ERROR');
   }
@@ -94,23 +109,34 @@ exports.getWeeklyPlan = asyncHandler(async (req, res) => {
     checkRateLimit(userId);
   }
 
-  const sessions = await Session.find({ userId }).sort({ date: -1 }).lean();
+  const sessions = await prisma.session.findMany({
+    where: { userId },
+    orderBy: { date: 'desc' },
+  });
 
-  const activeSubjects = await Subject.find({
-    userId,
-    active: true,
-    isArchived: false,
-    isDeleted: false,
-  }).sort({ order: 1 }).lean();
+  const activeSubjects = await prisma.subject.findMany({
+    where: {
+      userId,
+      active: true,
+      isArchived: false,
+      isDeleted: false,
+    },
+    orderBy: { order: 'asc' },
+  });
 
-  const activeSubjectIds = activeSubjects.map(s => s._id);
-  const chapters = await Chapter.find({
-    userId,
-    subjectId: { $in: activeSubjectIds },
-    isDeleted: false,
-  }).sort({ order: 1 }).lean();
+  const activeSubjectIds = activeSubjects.map(s => s.id);
+  const chapters = await prisma.chapter.findMany({
+    where: {
+      userId,
+      subjectId: { in: activeSubjectIds },
+      isDeleted: false,
+    },
+    orderBy: { order: 'asc' },
+  });
 
-  const exams = await Exam.find({ userId }).lean();
+  const exams = await prisma.exam.findMany({
+    where: { userId },
+  });
 
   if (activeSubjects.length === 0) {
     return res.status(200).json({
@@ -119,16 +145,23 @@ exports.getWeeklyPlan = asyncHandler(async (req, res) => {
         plan: [],
         weeklyMilestones: [],
         weeklyStrategy: "Configure subjects and chapters to receive weekly plans.",
-        isEmpty: true
-      }
+        isEmpty: true,
+      },
     });
   }
 
   let plan;
   try {
-    plan = await generateWeeklyPlanWithGemini(sessions, userName, activeSubjects, chapters, exams);
-    const User = require('../models/User');
-    await User.findByIdAndUpdate(userId, { hasUsedPlanner: true });
+    // Map objects for gemini service compatibility
+    const compatibleSubjects = activeSubjects.map(s => ({ ...s, _id: s.id }));
+    const compatibleChapters = chapters.map(c => ({ ...c, _id: c.id }));
+    const compatibleExams = exams.map(e => ({ ...e, _id: e.id }));
+
+    plan = await generateWeeklyPlanWithGemini(sessions, userName, compatibleSubjects, compatibleChapters, compatibleExams);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { hasUsedPlanner: true },
+    });
   } catch (err) {
     throw new AppError(err.message || 'AI Planner could not generate a valid study plan. Retrying...', 503, 'AI_ERROR');
   }

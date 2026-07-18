@@ -1,8 +1,5 @@
 'use strict';
 
-const mongoose = require('mongoose');
-
-// All possible achievements defined here as a reference
 const ACHIEVEMENT_DEFINITIONS = [
   {
     slug: 'first-session',
@@ -96,33 +93,6 @@ const ACHIEVEMENT_DEFINITIONS = [
   },
 ];
 
-const achievementSchema = new mongoose.Schema(
-  {
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
-    slug: {
-      type: String,
-      required: true,
-      enum: ACHIEVEMENT_DEFINITIONS.map((a) => a.slug),
-    },
-    notified: {
-      type: Boolean,
-      default: false,
-    },
-  },
-  {
-    timestamps: true,
-  }
-);
-
-// Each user can earn each achievement only once
-achievementSchema.index({ userId: 1, slug: 1 }, { unique: true });
-
-const Achievement = mongoose.model('Achievement', achievementSchema);
-
-module.exports = Achievement;
-module.exports.ACHIEVEMENT_DEFINITIONS = ACHIEVEMENT_DEFINITIONS;
-
+module.exports = {
+  ACHIEVEMENT_DEFINITIONS,
+};

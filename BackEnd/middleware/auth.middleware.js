@@ -1,7 +1,7 @@
 'use strict';
 
 const { verifyAccessToken } = require('../config/jwt');
-const User                  = require('../models/User');
+const { prisma }            = require('../config/prisma');
 const AppError              = require('../utils/AppError');
 const asyncHandler          = require('../utils/asyncHandler');
 
@@ -11,7 +11,7 @@ const asyncHandler          = require('../utils/asyncHandler');
  * Reads the JWT from the Authorization header:
  *   Authorization: Bearer <accessToken>
  *
- * On success: attaches req.user (full Mongoose document) and calls next()
+ * On success: attaches req.user (Prisma user object) and calls next()
  * On failure: throws AppError → caught by global error handler
  */
 const protect = asyncHandler(async (req, res, next) => {
@@ -39,7 +39,7 @@ const protect = asyncHandler(async (req, res, next) => {
   }
 
   // 3. Check user still exists (e.g. account deleted after token was issued)
-  const user = await User.findById(decoded.id);
+  const user = await prisma.user.findUnique({ where: { id: decoded.id } });
   if (!user) {
     throw new AppError('The user belonging to this token no longer exists.', 401, 'USER_NOT_FOUND');
   }

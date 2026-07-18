@@ -10,8 +10,8 @@ Before initiating the deployment in Vercel, ensure you have gathered the followi
 
 | Environment Variable | Where to find / What it is | Required for |
 | :--- | :--- | :--- |
-| `MONGO_URI` | MongoDB Atlas cluster connection string (e.g., `mongodb+srv://...`) | Database persistence |
-| `JWT_SECRET` | A secure, random string (e.g., generated with `openssl rand -base64 32`) | Access token signing |
+| `DATABASE_URL` | Neon PostgreSQL database connection string (e.g., `postgresql://...`) | Database persistence |
+| `JWT_ACCESS_SECRET` | A secure, random string (e.g., generated with `openssl rand -base64 32`) | Access token signing |
 | `JWT_REFRESH_SECRET` | A secure, random string | Refresh token signing |
 | `GEMINI_API_KEY` | Google Gemini API Key | AI Study Coach & Planner features |
 | `NODE_ENV` | Set to `production` | Node.js production optimization |
@@ -32,7 +32,7 @@ In the **Configure Project** window:
 - **Build and Development Settings**:
   - Keep default options. Vercel will automatically read the `"build"` script from the root `package.json` and output static assets to `dist/`.
 - **Environment Variables**:
-  - Add all environment variables listed in the checklist above (`MONGO_URI`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `GEMINI_API_KEY`, and `NODE_ENV=production`).
+  - Add all environment variables listed in the checklist above (`DATABASE_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `GEMINI_API_KEY`, and `NODE_ENV=production`).
 
 ### 3. Click Deploy!
 Vercel will:

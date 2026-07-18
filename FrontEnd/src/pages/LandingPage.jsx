@@ -454,14 +454,25 @@ const LandingPage = () => {
 
           {/* CTA Buttons */}
           <div className="hero-cta-wrap flex flex-col sm:flex-row items-center justify-center gap-5 w-full sm:w-auto mb-20">
-            <RouterLink 
-              to="/register" 
-              ref={primaryCtaRef}
-              className="btn-primary w-full sm:w-auto px-10 py-5 text-base rounded-xl flex items-center justify-center gap-2 group cursor-pointer shadow-premium-glow"
-            >
-              <span>Get Started Free</span>
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
-            </RouterLink>
+            {localStorage.getItem('accessToken') ? (
+              <RouterLink 
+                to="/dashboard" 
+                ref={primaryCtaRef}
+                className="btn-primary w-full sm:w-auto px-10 py-5 text-base rounded-xl flex items-center justify-center gap-2 group cursor-pointer shadow-premium-glow"
+              >
+                <span>Go to Dashboard</span>
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
+              </RouterLink>
+            ) : (
+              <RouterLink 
+                to="/register" 
+                ref={primaryCtaRef}
+                className="btn-primary w-full sm:w-auto px-10 py-5 text-base rounded-xl flex items-center justify-center gap-2 group cursor-pointer shadow-premium-glow"
+              >
+                <span>Get Started Free</span>
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
+              </RouterLink>
+            )}
             <button 
               ref={secondaryCtaRef}
               onClick={() => {
@@ -734,13 +745,23 @@ const LandingPage = () => {
             Join thousands of elite scholars calibrating their schedules, building habit consistency, and hitting core goals.
           </p>
 
-          <RouterLink 
-            to="/register" 
-            className="btn-primary px-10 py-5 text-base rounded-xl flex items-center gap-2 group cursor-pointer shadow-premium-glow"
-          >
-            <span>Get Started For Free</span>
-            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
-          </RouterLink>
+          {localStorage.getItem('accessToken') ? (
+            <RouterLink 
+              to="/dashboard" 
+              className="btn-primary px-10 py-5 text-base rounded-xl flex items-center gap-2 group cursor-pointer shadow-premium-glow"
+            >
+              <span>Go to Dashboard</span>
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
+            </RouterLink>
+          ) : (
+            <RouterLink 
+              to="/register" 
+              className="btn-primary px-10 py-5 text-base rounded-xl flex items-center gap-2 group cursor-pointer shadow-premium-glow"
+            >
+              <span>Get Started For Free</span>
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
+            </RouterLink>
+          )}
         </div>
       </section>
 

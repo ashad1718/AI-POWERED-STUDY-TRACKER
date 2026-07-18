@@ -1,8 +1,6 @@
 'use strict';
 
-const Chapter      = require('../models/Chapter');
-const Subject      = require('../models/Subject');
-const Semester     = require('../models/Semester');
+const { prisma } = require('../config/prisma');
 const AppError     = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
 const { checkAndUpdateChapterAutoCompletion } = require('../services/chapterCompletion.service');
@@ -15,30 +13,42 @@ exports.getChapters = asyncHandler(async (req, res) => {
     filter.subjectId = req.query.subjectId;
   }
 
-  const chapters = await Chapter.find(filter).sort({ order: 1, createdAt: -1 });
+  const chapters = await prisma.chapter.findMany({
+    where: filter,
+    orderBy: [
+      { order: 'asc' },
+      { createdAt: 'desc' },
+    ],
+  });
 
-  const Session = require('../models/Session');
-  const chapterIds = chapters.map(c => c._id);
-  const sessionStats = await Session.aggregate([
-    { $match: { chapterId: { $in: chapterIds } } },
-    {
-      $group: {
-        _id: '$chapterId',
-        sessionCount: { $sum: 1 },
-        totalDuration: { $sum: '$duration' }
-      }
-    }
-  ]);
+  const chapterIds = chapters.map(c => c.id);
+  
+  // Aggregate session counts and total durations for these chapters
+  const sessionStats = await prisma.session.groupBy({
+    by: ['chapterId'],
+    where: {
+      chapterId: { in: chapterIds },
+    },
+    _count: {
+      _all: true,
+    },
+    _sum: {
+      duration: true,
+    },
+  });
 
   const statsMap = {};
   sessionStats.forEach(stat => {
-    if (stat._id) {
-      statsMap[stat._id.toString()] = stat;
+    if (stat.chapterId) {
+      statsMap[stat.chapterId] = {
+        sessionCount: stat._count._all,
+        totalDuration: stat._sum.duration || 0,
+      };
     }
   });
 
   const chaptersWithStats = chapters.map(c => {
-    const stat = statsMap[c._id.toString()] || { sessionCount: 0, totalDuration: 0 };
+    const stat = statsMap[c.id] || { sessionCount: 0, totalDuration: 0 };
     let status = 'not_started';
     if (c.completed) {
       status = 'completed';
@@ -51,13 +61,14 @@ exports.getChapters = asyncHandler(async (req, res) => {
     const difference = parseFloat((actual - estimated).toFixed(2));
 
     return {
-      ...c.toObject(),
+      ...c,
+      _id: c.id, // compatibility with frontend _id
       estimatedTime: estimated,
       actualTime: actual,
       difference,
       sessionCount: stat.sessionCount,
       totalDuration: stat.totalDuration,
-      status
+      status,
     };
   });
 
@@ -86,93 +97,129 @@ exports.createChapter = asyncHandler(async (req, res) => {
   }
 
   // Verify active semester exists
-  const activeSemester = await Semester.findOne({ userId: req.user.id, active: true, isDeleted: false });
+  const activeSemester = await prisma.semester.findFirst({
+    where: { userId: req.user.id, active: true, isDeleted: false },
+  });
   if (!activeSemester) {
     throw new AppError('Please configure your semester first.', 400);
   }
 
   // Verify subject exists and belongs to user
-  const subject = await Subject.findOne({ _id: subjectId, userId: req.user.id, isDeleted: false });
+  const subject = await prisma.subject.findFirst({
+    where: { id: subjectId, userId: req.user.id, isDeleted: false },
+  });
   if (!subject) {
     throw new AppError('Associated subject not found.', 404, 'NOT_FOUND');
   }
 
-  const chapter = await Chapter.create({
-    userId: req.user.id,
-    subjectId,
-    name: name.trim(),
-    estimatedTime: estNum,
-    completed: completed || false,
-    completedMethod: completed ? 'manual' : 'none',
-    order: order || 0,
+  const chapter = await prisma.chapter.create({
+    data: {
+      userId: req.user.id,
+      subjectId,
+      name: name.trim(),
+      estimatedTime: estNum,
+      completed: completed || false,
+      completedMethod: completed ? 'manual' : 'none',
+      order: order || 0,
+    },
   });
 
   // Re-evaluate auto-completion in case there are already sessions
-  await checkAndUpdateChapterAutoCompletion(req.user.id, subjectId, chapter._id);
+  await checkAndUpdateChapterAutoCompletion(req.user.id, subjectId, chapter.id);
+
+  // Fetch the final state of the chapter
+  const finalChapter = await prisma.chapter.findUnique({
+    where: { id: chapter.id },
+  });
+
+  const formattedChapter = {
+    ...finalChapter,
+    _id: finalChapter.id,
+  };
 
   res.status(201).json({
     success: true,
-    data: { chapter },
+    data: { chapter: formattedChapter },
   });
 });
 
 // ─── PUT /api/v1/chapters/:id ─────────────────────────────────────────────────
 exports.updateChapter = asyncHandler(async (req, res) => {
-  const chapter = await Chapter.findById(req.params.id);
+  const chapter = await prisma.chapter.findUnique({
+    where: { id: req.params.id },
+  });
 
   if (!chapter) throw new AppError('Chapter not found.', 404, 'NOT_FOUND');
-  if (chapter.userId.toString() !== req.user.id.toString()) {
+  if (chapter.userId !== req.user.id) {
     throw new AppError('You do not have permission to modify this chapter.', 403, 'FORBIDDEN');
   }
 
   const { name, completed, completedMethod, order, estimatedTime } = req.body;
 
-  if (name !== undefined) chapter.name = name.trim();
-  if (order !== undefined) chapter.order = order;
+  const dataToUpdate = {};
+  if (name !== undefined) dataToUpdate.name = name.trim();
+  if (order !== undefined) dataToUpdate.order = order;
   
   if (estimatedTime !== undefined) {
     const estNum = Number(estimatedTime);
     if (isNaN(estNum) || estNum < 0.1) {
       throw new AppError('Estimated completion time must be at least 0.1 hours.', 400);
     }
-    chapter.estimatedTime = estNum;
+    dataToUpdate.estimatedTime = estNum;
   }
 
   if (completed !== undefined) {
-    chapter.completed = completed;
+    dataToUpdate.completed = completed;
     if (completed) {
-      chapter.completedMethod = completedMethod || 'manual';
+      dataToUpdate.completedMethod = completedMethod || 'manual';
     } else {
-      chapter.completedMethod = 'none';
+      dataToUpdate.completedMethod = 'none';
     }
   } else if (completedMethod !== undefined) {
-    chapter.completedMethod = completedMethod;
-    chapter.completed = completedMethod !== 'none';
+    dataToUpdate.completedMethod = completedMethod;
+    dataToUpdate.completed = completedMethod !== 'none';
   }
 
-  await chapter.save();
+  const updatedChapter = await prisma.chapter.update({
+    where: { id: req.params.id },
+    data: dataToUpdate,
+  });
 
   // Re-evaluate auto-completion status
-  await checkAndUpdateChapterAutoCompletion(req.user.id, chapter.subjectId, chapter._id);
+  await checkAndUpdateChapterAutoCompletion(req.user.id, updatedChapter.subjectId, updatedChapter.id);
+
+  // Fetch final chapter state
+  const finalChapter = await prisma.chapter.findUnique({
+    where: { id: updatedChapter.id },
+  });
+
+  const formattedChapter = {
+    ...finalChapter,
+    _id: finalChapter.id,
+  };
 
   res.status(200).json({
     success: true,
-    data: { chapter },
+    data: { chapter: formattedChapter },
   });
 });
 
 // ─── DELETE /api/v1/chapters/:id ──────────────────────────────────────────────
 exports.deleteChapter = asyncHandler(async (req, res) => {
-  const chapter = await Chapter.findById(req.params.id);
+  const chapter = await prisma.chapter.findUnique({
+    where: { id: req.params.id },
+  });
 
   if (!chapter) throw new AppError('Chapter not found.', 404, 'NOT_FOUND');
-  if (chapter.userId.toString() !== req.user.id.toString()) {
+  if (chapter.userId !== req.user.id) {
     throw new AppError('You do not have permission to delete this chapter.', 403, 'FORBIDDEN');
   }
 
   // Soft delete chapter
-  chapter.isDeleted = true;
-  await chapter.save();
+  await prisma.chapter.update({
+    where: { id: req.params.id },
+    data: { isDeleted: true },
+  });
 
   res.status(200).json({
     success: true,

@@ -1,9 +1,6 @@
 'use strict';
 
-const Semester     = require('../models/Semester');
-const Subject      = require('../models/Subject');
-const Chapter      = require('../models/Chapter');
-const Session      = require('../models/Session');
+const { prisma } = require('../config/prisma');
 const AppError     = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
 
@@ -12,7 +9,9 @@ exports.getSemesterProgress = asyncHandler(async (req, res) => {
   const userId = req.user.id;
 
   // 1. Find active semester
-  const activeSemester = await Semester.findOne({ userId, active: true, isDeleted: false });
+  const activeSemester = await prisma.semester.findFirst({
+    where: { userId, active: true, isDeleted: false },
+  });
   if (!activeSemester) {
     return res.status(200).json({
       success: true,
@@ -24,20 +23,29 @@ exports.getSemesterProgress = asyncHandler(async (req, res) => {
   }
 
   // 2. Fetch active subjects linked to this semester
-  const activeSubjects = await Subject.find({
-    userId,
-    semesterId: activeSemester._id,
-    isDeleted: false,
-  }).sort({ order: 1 });
+  const activeSubjects = await prisma.subject.findMany({
+    where: {
+      userId,
+      semesterId: activeSemester.id,
+      isDeleted: false,
+    },
+    orderBy: { order: 'asc' },
+  });
 
-  const activeSubjectIds = activeSubjects.map(s => s._id);
+  const activeSubjectIds = activeSubjects.map(s => s.id);
 
   // 3. Fetch all non-deleted chapters for these active subjects
-  const chapters = await Chapter.find({
-    userId,
-    subjectId: { $in: activeSubjectIds },
-    isDeleted: false,
-  }).sort({ order: 1, createdAt: -1 });
+  const chapters = await prisma.chapter.findMany({
+    where: {
+      userId,
+      subjectId: { in: activeSubjectIds },
+      isDeleted: false,
+    },
+    orderBy: [
+      { order: 'asc' },
+      { createdAt: 'desc' },
+    ],
+  });
 
   // Calculate stats per subject
   let overallEstimatedHours = 0;
@@ -46,8 +54,8 @@ exports.getSemesterProgress = asyncHandler(async (req, res) => {
   let totalChaptersCount = 0;
 
   const subjectBreakdown = activeSubjects.map(subject => {
-    const subId = subject._id.toString();
-    const subChapters = chapters.filter(c => c.subjectId.toString() === subId);
+    const subId = subject.id;
+    const subChapters = chapters.filter(c => c.subjectId === subId);
     
     let totalEstimatedHours = 0;
     let totalActualHours = 0;
@@ -82,7 +90,8 @@ exports.getSemesterProgress = asyncHandler(async (req, res) => {
       if (c.completed) completedChapters++;
 
       return {
-        ...c.toObject(),
+        ...c,
+        _id: c.id,
         estimatedTime: estimated,
         actualTime: actual,
         difference,
@@ -108,11 +117,14 @@ exports.getSemesterProgress = asyncHandler(async (req, res) => {
     totalChaptersCount += totalChapters;
 
     return {
-      _id: subject._id,
+      _id: subject.id,
       name: subject.name,
       active: subject.active,
       isArchived: subject.isArchived,
-      completionThreshold: subject.completionThreshold,
+      completionThreshold: {
+        sessions: subject.completionThresholdSessions,
+        hours: subject.completionThresholdHours,
+      },
       totalChapters,
       completedChapters,
       remainingChapters,
@@ -149,11 +161,16 @@ exports.getSemesterProgress = asyncHandler(async (req, res) => {
   const hoursSaved = Math.max(0, parseFloat((overallEstimatedHours - overallActualHours).toFixed(2)));
   const hoursExceeded = Math.max(0, parseFloat((overallActualHours - overallEstimatedHours).toFixed(2)));
 
+  const formattedSemester = {
+    ...activeSemester,
+    _id: activeSemester.id,
+  };
+
   res.status(200).json({
     success: true,
     data: {
       semesterExists: true,
-      semester: activeSemester,
+      semester: formattedSemester,
       totalSubjects: activeSubjects.length,
       completedChapters: completedChaptersCount,
       remainingChapters: remainingChaptersCount,
@@ -202,25 +219,30 @@ exports.setupNewSemester = asyncHandler(async (req, res) => {
   }
 
   // 1. Mark all previous semesters for user as inactive
-  await Semester.updateMany({ userId, active: true }, { active: false });
+  await prisma.semester.updateMany({
+    where: { userId, active: true },
+    data: { active: false },
+  });
 
   // 2. Create the new semester
-  const semester = await Semester.create({
-    userId,
-    name: name.trim(),
-    startDate,
-    endDate,
-    expectedHoursPerWeek: Number(expectedHoursPerWeek),
-    goalGPA: goalGPA ? Number(goalGPA) : undefined,
-    active: true,
+  const semester = await prisma.semester.create({
+    data: {
+      userId,
+      name: name.trim(),
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
+      expectedHoursPerWeek: Number(expectedHoursPerWeek),
+      goalGPA: goalGPA ? Number(goalGPA) : null,
+      active: true,
+    },
   });
 
   // 3. Archive active subjects if requested
   if (archiveActive) {
-    await Subject.updateMany(
-      { userId, active: true, isArchived: false, isDeleted: false },
-      { active: false, isArchived: true }
-    );
+    await prisma.subject.updateMany({
+      where: { userId, active: true, isArchived: false, isDeleted: false },
+      data: { active: false, isArchived: true },
+    });
   }
 
   // 4. Create new subjects linked to this semester
@@ -228,23 +250,37 @@ exports.setupNewSemester = asyncHandler(async (req, res) => {
   for (let i = 0; i < newSubjects.length; i++) {
     const subName = newSubjects[i];
     if (subName && subName.trim()) {
-      const subject = await Subject.create({
-        userId,
-        semesterId: semester._id,
-        name: subName.trim(),
-        active: true,
-        isArchived: false,
-        order: i,
+      const subject = await prisma.subject.create({
+        data: {
+          userId,
+          semesterId: semester.id,
+          name: subName.trim(),
+          active: true,
+          isArchived: false,
+          order: i,
+        },
       });
-      createdSubjects.push(subject);
+      createdSubjects.push({
+        ...subject,
+        _id: subject.id,
+        completionThreshold: {
+          sessions: subject.completionThresholdSessions,
+          hours: subject.completionThresholdHours,
+        },
+      });
     }
   }
+
+  const formattedSemester = {
+    ...semester,
+    _id: semester.id,
+  };
 
   res.status(201).json({
     success: true,
     message: 'New semester setup completed successfully.',
     data: {
-      semester,
+      semester: formattedSemester,
       createdSubjects,
     },
   });

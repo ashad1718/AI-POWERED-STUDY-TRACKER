@@ -1,0 +1,135 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id               String        @id @default(uuid())
+  name             String
+  email            String        @unique
+  password         String
+  location         String        @default("")
+  avatarUrl        String        @default("")
+  twoFactorEnabled Boolean       @default(false)
+  refreshToken     String?
+  otpHash          String?
+  otpExpiresAt     DateTime?
+  otpAttempts      Int           @default(0)
+  hasUsedPlanner   Boolean       @default(false)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  achievements     Achievement[]
+  semesters        Semester[]
+  subjects         Subject[]
+  chapters         Chapter[]
+  sessions         Session[]
+  exams            Exam[]
+}
+
+model Achievement {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slug      String
+  notified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, slug])
+}
+
+model Semester {
+  id                   String    @id @default(uuid())
+  userId               String
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                 String
+  startDate            DateTime
+  endDate              DateTime
+  expectedHoursPerWeek Float
+  goalGPA              Float?
+  active               Boolean   @default(true)
+  isDeleted            Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  subjects             Subject[]
+
+  @@index([userId, active, isDeleted])
+}
+
+model Subject {
+  id                          String    @id @default(uuid())
+  userId                      String
+  user                        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  semesterId                  String?
+  semester                    Semester? @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  name                        String
+  active                      Boolean   @default(true)
+  isArchived                  Boolean   @default(false)
+  isDeleted                   Boolean   @default(false)
+  order                       Int       @default(0)
+  completionThresholdSessions Int       @default(3)
+  completionThresholdHours    Float     @default(5.0)
+  completionRule              String    @default("first_session")
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
+  chapters                    Chapter[]
+  sessions                    Session[]
+  exams                       Exam[]
+
+  @@index([userId, active, isArchived, isDeleted, order])
+}
+
+model Chapter {
+  id              String    @id @default(uuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectId       String
+  subject         Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  name            String
+  estimatedTime   Float     @default(2)
+  actualTime      Float     @default(0)
+  completed       Boolean   @default(false)
+  completedMethod String    @default("none")
+  isDeleted       Boolean   @default(false)
+  order           Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  sessions        Session[]
+
+  @@index([userId, subjectId, isDeleted, order])
+}
+
+model Session {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject    String
+  subjectId  String?
+  subjectRef Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  chapterId  String?
+  chapterRef Chapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  chapter    String?
+  duration   Int
+  date       String   // stored as "YYYY-MM-DD"
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId, date])
+  @@index([userId, subject])
+}
+
+model Exam {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  date      DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, subjectId])
+}

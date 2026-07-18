@@ -18,7 +18,7 @@ const REFRESH_EXPIRES = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
  */
 const signAccessToken = (user) => {
   return jwt.sign(
-    { id: user._id, name: user.name, email: user.email },
+    { id: user.id, name: user.name, email: user.email },
     ACCESS_SECRET,
     { expiresIn: ACCESS_EXPIRES }
   );
@@ -27,12 +27,12 @@ const signAccessToken = (user) => {
 /**
  * Creates a long-lived refresh token.
  * Payload stored: { id } only — minimal data in refresh token.
- * @param {Object} user  - Mongoose user document
+ * @param {Object} user  - User record
  * @returns {string}     - signed JWT string
  */
 const signRefreshToken = (user) => {
   return jwt.sign(
-    { id: user._id },
+    { id: user.id },
     REFRESH_SECRET,
     { expiresIn: REFRESH_EXPIRES }
   );

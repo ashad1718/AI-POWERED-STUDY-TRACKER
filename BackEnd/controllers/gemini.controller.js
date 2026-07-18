@@ -1,9 +1,6 @@
 'use strict';
 
-const Session                    = require('../models/Session');
-const Subject                    = require('../models/Subject');
-const Chapter                    = require('../models/Chapter');
-const Achievement                = require('../models/Achievement');
+const { prisma } = require('../config/prisma');
 const asyncHandler               = require('../utils/asyncHandler');
 const AppError                   = require('../utils/AppError');
 const { analyseWithGemini, chatWithGemini } = require('../services/gemini.service');
@@ -34,30 +31,53 @@ exports.analyzeStudy = asyncHandler(async (req, res) => {
   lastRequestTime.set(userId, Date.now());
 
   // ── Fetch user sessions, subjects, and chapters ───────────────────────────
-  const sessions = await Session.find({ userId })
-    .sort({ date: -1 })
-    .lean();
+  const sessions = await prisma.session.findMany({
+    where: { userId },
+    orderBy: { date: 'desc' },
+  });
 
-  const activeSubjects = await Subject.find({
-    userId,
-    active: true,
-    isArchived: false,
-    isDeleted: false,
-  }).sort({ order: 1 }).lean();
+  const activeSubjects = await prisma.subject.findMany({
+    where: {
+      userId,
+      active: true,
+      isArchived: false,
+      isDeleted: false,
+    },
+    orderBy: { order: 'asc' },
+  });
 
-  const activeSubjectIds = activeSubjects.map(s => s._id);
-  const chapters = await Chapter.find({
-    userId,
-    subjectId: { $in: activeSubjectIds },
-    isDeleted: false,
-  }).sort({ order: 1 }).lean();
+  const activeSubjectIds = activeSubjects.map(s => s.id);
+  const chapters = await prisma.chapter.findMany({
+    where: {
+      userId,
+      subjectId: { in: activeSubjectIds },
+      isDeleted: false,
+    },
+    orderBy: { order: 'asc' },
+  });
 
   // ── Run Gemini analysis ───────────────────────────────────────────────────
   let result;
   try {
     const streakStats = calculateStreakStats(sessions);
-    const achievements = await Achievement.find({ userId }).lean();
-    result = await analyseWithGemini(sessions, userName, activeSubjects, chapters, streakStats, achievements);
+    const achievements = await prisma.achievement.findMany({
+      where: { userId },
+    });
+    
+    // Map to keep exact Mongoose object shape for gemini service
+    const compatibleSessions = sessions.map(s => ({ ...s, _id: s.id }));
+    const compatibleSubjects = activeSubjects.map(s => ({ ...s, _id: s.id }));
+    const compatibleChapters = chapters.map(c => ({ ...c, _id: c.id }));
+    const compatibleAchievements = achievements.map(a => ({ ...a, _id: a.id }));
+
+    result = await analyseWithGemini(
+      compatibleSessions,
+      userName,
+      compatibleSubjects,
+      compatibleChapters,
+      streakStats,
+      compatibleAchievements
+    );
   } catch (err) {
     if (err.message.includes('not configured')) {
       throw new AppError(err.message, 503, 'AI_NOT_CONFIGURED');
@@ -110,30 +130,54 @@ exports.chatStudy = asyncHandler(async (req, res) => {
   }
 
   // ── Fetch user sessions, subjects, and chapters ───────────────────────────
-  const sessions = await Session.find({ userId })
-    .sort({ date: -1 })
-    .lean();
+  const sessions = await prisma.session.findMany({
+    where: { userId },
+    orderBy: { date: 'desc' },
+  });
 
-  const activeSubjects = await Subject.find({
-    userId,
-    active: true,
-    isArchived: false,
-    isDeleted: false,
-  }).sort({ order: 1 }).lean();
+  const activeSubjects = await prisma.subject.findMany({
+    where: {
+      userId,
+      active: true,
+      isArchived: false,
+      isDeleted: false,
+    },
+    orderBy: { order: 'asc' },
+  });
 
-  const activeSubjectIds = activeSubjects.map(s => s._id);
-  const chapters = await Chapter.find({
-    userId,
-    subjectId: { $in: activeSubjectIds },
-    isDeleted: false,
-  }).sort({ order: 1 }).lean();
+  const activeSubjectIds = activeSubjects.map(s => s.id);
+  const chapters = await prisma.chapter.findMany({
+    where: {
+      userId,
+      subjectId: { in: activeSubjectIds },
+      isDeleted: false,
+    },
+    orderBy: { order: 'asc' },
+  });
 
   // ── Run Gemini chat ───────────────────────────────────────────────────────
   let result;
   try {
     const streakStats = calculateStreakStats(sessions);
-    const achievements = await Achievement.find({ userId }).lean();
-    result = await chatWithGemini(sessions, userName, message.trim(), activeSubjects, chapters, streakStats, achievements);
+    const achievements = await prisma.achievement.findMany({
+      where: { userId },
+    });
+
+    // Map to keep exact Mongoose object shape for gemini service
+    const compatibleSessions = sessions.map(s => ({ ...s, _id: s.id }));
+    const compatibleSubjects = activeSubjects.map(s => ({ ...s, _id: s.id }));
+    const compatibleChapters = chapters.map(c => ({ ...c, _id: c.id }));
+    const compatibleAchievements = achievements.map(a => ({ ...a, _id: a.id }));
+
+    result = await chatWithGemini(
+      compatibleSessions,
+      userName,
+      message.trim(),
+      compatibleSubjects,
+      compatibleChapters,
+      streakStats,
+      compatibleAchievements
+    );
   } catch (err) {
     if (err.message.includes('not configured')) {
       throw new AppError(err.message, 503, 'AI_NOT_CONFIGURED');

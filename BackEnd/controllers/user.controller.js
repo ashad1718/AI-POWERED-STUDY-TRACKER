@@ -1,6 +1,6 @@
 'use strict';
 
-const User         = require('../models/User');
+const { prisma, toPublicJSON, comparePassword, hashPassword } = require('../config/prisma');
 const AppError     = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
 
@@ -8,7 +8,7 @@ const asyncHandler = require('../utils/asyncHandler');
 exports.getMe = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
-    data: { user: req.user.toPublicJSON() },
+    data: { user: toPublicJSON(req.user) },
   });
 });
 
@@ -21,15 +21,14 @@ exports.updateMe = asyncHandler(async (req, res) => {
   if (location !== undefined) updates.location  = location;
   if (avatarUrl !== undefined) updates.avatarUrl = avatarUrl;
 
-  const user = await User.findByIdAndUpdate(
-    req.user.id,
-    updates,
-    { new: true, runValidators: true }
-  );
+  const user = await prisma.user.update({
+    where: { id: req.user.id },
+    data: updates,
+  });
 
   res.status(200).json({
     success: true,
-    data: { user: user.toPublicJSON() },
+    data: { user: toPublicJSON(user) },
   });
 });
 
@@ -41,15 +40,21 @@ exports.updatePassword = asyncHandler(async (req, res) => {
     throw new AppError('Please provide currentPassword and newPassword.', 400);
   }
 
-  // Fetch user with password field
-  const user = await User.findById(req.user.id).select('+password');
+  // Fetch user with password
+  const user = await prisma.user.findUnique({
+    where: { id: req.user.id },
+  });
 
-  if (!(await user.comparePassword(currentPassword))) {
+  if (!user || !(await comparePassword(currentPassword, user.password))) {
     throw new AppError('Current password is incorrect.', 401, 'WRONG_PASSWORD');
   }
 
-  user.password = newPassword;
-  await user.save();
+  const hashedPassword = await hashPassword(newPassword);
+
+  await prisma.user.update({
+    where: { id: req.user.id },
+    data: { password: hashedPassword },
+  });
 
   res.status(200).json({
     success: true,

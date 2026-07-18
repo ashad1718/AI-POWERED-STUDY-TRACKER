@@ -1,7 +1,6 @@
 'use strict';
 
-const Session       = require('../models/Session');
-const Semester      = require('../models/Semester');
+const { prisma } = require('../config/prisma');
 const AppError      = require('../utils/AppError');
 const asyncHandler  = require('../utils/asyncHandler');
 const { checkAndUnlockAchievements } = require('../services/achievement.service');
@@ -12,7 +11,9 @@ exports.createSession = asyncHandler(async (req, res) => {
   const { subject, subjectId, chapterId, duration, date } = req.body;
 
   // Verify active semester exists
-  const activeSemester = await Semester.findOne({ userId: req.user.id, active: true, isDeleted: false });
+  const activeSemester = await prisma.semester.findFirst({
+    where: { userId: req.user.id, active: true, isDeleted: false },
+  });
   if (!activeSemester) {
     throw new AppError('Please configure your semester first.', 400);
   }
@@ -21,29 +22,33 @@ exports.createSession = asyncHandler(async (req, res) => {
   let resolvedChapter = '';
 
   if (subjectId) {
-    const Subject = require('../models/Subject');
-    const sub = await Subject.findOne({ _id: subjectId, userId: req.user.id });
+    const sub = await prisma.subject.findFirst({
+      where: { id: subjectId, userId: req.user.id },
+    });
     if (sub) {
       resolvedSubject = sub.name;
     }
   }
 
   if (chapterId) {
-    const Chapter = require('../models/Chapter');
-    const chap = await Chapter.findOne({ _id: chapterId, userId: req.user.id });
+    const chap = await prisma.chapter.findFirst({
+      where: { id: chapterId, userId: req.user.id },
+    });
     if (chap) {
       resolvedChapter = chap.name;
     }
   }
 
-  const session = await Session.create({
-    userId:   req.user.id,
-    subject:  resolvedSubject || 'General Study',
-    subjectId: subjectId || null,
-    chapterId: chapterId || null,
-    chapter:  resolvedChapter,
-    duration: Number(duration),
-    date,
+  const session = await prisma.session.create({
+    data: {
+      userId:    req.user.id,
+      subject:   resolvedSubject || 'General Study',
+      subjectId: subjectId || null,
+      chapterId: chapterId || null,
+      chapter:   resolvedChapter,
+      duration:  Number(duration),
+      date,
+    },
   });
 
   console.log('[SESSION] Created');
@@ -74,16 +79,21 @@ exports.getSessions = asyncHandler(async (req, res) => {
   const filter = { userId: req.user.id };
   if (from || to) {
     filter.date = {};
-    if (from) filter.date.$gte = from;
-    if (to)   filter.date.$lte = to;
+    if (from) filter.date.gte = from;
+    if (to)   filter.date.lte = to;
   }
 
   const skip  = (Number(page) - 1) * Number(limit);
-  const total = await Session.countDocuments(filter);
-  const sessions = await Session.find(filter)
-    .sort({ date: -1, createdAt: -1 })
-    .skip(skip)
-    .limit(Number(limit));
+  const total = await prisma.session.count({ where: filter });
+  const sessions = await prisma.session.findMany({
+    where: filter,
+    orderBy: [
+      { date: 'desc' },
+      { createdAt: 'desc' },
+    ],
+    skip,
+    take: Number(limit),
+  });
 
   res.status(200).json({
     success: true,
@@ -99,10 +109,12 @@ exports.getSessions = asyncHandler(async (req, res) => {
 
 // ─── GET /api/v1/sessions/:id ─────────────────────────────────────────────────
 exports.getSession = asyncHandler(async (req, res) => {
-  const session = await Session.findById(req.params.id);
+  const session = await prisma.session.findUnique({
+    where: { id: req.params.id },
+  });
 
   if (!session) throw new AppError('Session not found.', 404, 'NOT_FOUND');
-  if (session.userId.toString() !== req.user.id.toString()) {
+  if (session.userId !== req.user.id) {
     throw new AppError('You do not have permission to access this session.', 403, 'FORBIDDEN');
   }
 
@@ -111,16 +123,20 @@ exports.getSession = asyncHandler(async (req, res) => {
 
 // ─── DELETE /api/v1/sessions/:id ─────────────────────────────────────────────
 exports.deleteSession = asyncHandler(async (req, res) => {
-  const session = await Session.findById(req.params.id);
+  const session = await prisma.session.findUnique({
+    where: { id: req.params.id },
+  });
 
   if (!session) throw new AppError('Session not found.', 404, 'NOT_FOUND');
-  if (session.userId.toString() !== req.user.id.toString()) {
+  if (session.userId !== req.user.id) {
     throw new AppError('You do not have permission to delete this session.', 403, 'FORBIDDEN');
   }
 
   const { subjectId, chapterId } = session;
 
-  await session.deleteOne();
+  await prisma.session.delete({
+    where: { id: req.params.id },
+  });
 
   // Re-evaluate chapter auto-completion status after deletion
   if (subjectId && chapterId) {

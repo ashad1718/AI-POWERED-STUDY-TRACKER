@@ -1,10 +1,6 @@
 'use strict';
 
-const Session = require('../models/Session');
-const Achievement = require('../models/Achievement');
-const Subject = require('../models/Subject');
-const Chapter = require('../models/Chapter');
-const User = require('../models/User');
+const { prisma } = require('../config/prisma');
 const { calculateStreakStats } = require('./streak.service');
 
 /**
@@ -13,12 +9,15 @@ const { calculateStreakStats } = require('./streak.service');
  * Checks all achievement conditions and awards any newly earned ones.
  * Uses upsert-style insert so duplicate awards are silently ignored.
  *
- * @param {string} userId - the user's MongoDB ObjectId
+ * @param {string} userId - the user's ID
  */
 const checkAndUnlockAchievements = async (userId) => {
   try {
     // 1. Get already earned achievements
-    const earned = await Achievement.find({ userId }).select('slug').lean();
+    const earned = await prisma.achievement.findMany({
+      where: { userId },
+      select: { slug: true },
+    });
     const earnedSlugs = new Set(earned.map((a) => a.slug));
 
     const toUnlock = [];
@@ -39,7 +38,9 @@ const checkAndUnlockAchievements = async (userId) => {
     ].some(slug => !earnedSlugs.has(slug));
 
     if (needsSessions) {
-      sessions = await Session.find({ userId }).lean();
+      sessions = await prisma.session.findMany({
+        where: { userId },
+      });
     }
 
     // Check 1: first-session
@@ -49,10 +50,12 @@ const checkAndUnlockAchievements = async (userId) => {
 
     // Check 2: first-chapter-completed
     if (!earnedSlugs.has('first-chapter-completed')) {
-      const completedChaptersCount = await Chapter.countDocuments({
-        userId,
-        completed: true,
-        isDeleted: false,
+      const completedChaptersCount = await prisma.chapter.count({
+        where: {
+          userId,
+          completed: true,
+          isDeleted: false,
+        },
       });
       if (completedChaptersCount >= 1) {
         toUnlock.push('first-chapter-completed');
@@ -66,14 +69,18 @@ const checkAndUnlockAchievements = async (userId) => {
     ].some(slug => !earnedSlugs.has(slug));
 
     if (needsSubjectsOrChapters) {
-      const subjects = await Subject.find({ userId, isDeleted: false }).lean();
-      const chapters = await Chapter.find({ userId, isDeleted: false }).lean();
+      const subjects = await prisma.subject.findMany({
+        where: { userId, isDeleted: false },
+      });
+      const chapters = await prisma.chapter.findMany({
+        where: { userId, isDeleted: false },
+      });
 
       // Check 3: first-subject-completed
       if (!earnedSlugs.has('first-subject-completed')) {
         let hasCompletedSubject = false;
         for (const sub of subjects) {
-          const subChaps = chapters.filter(c => c.subjectId.toString() === sub._id.toString());
+          const subChaps = chapters.filter(c => c.subjectId === sub.id);
           if (subChaps.length > 0 && subChaps.every(c => c.completed)) {
             hasCompletedSubject = true;
             break;
@@ -88,8 +95,8 @@ const checkAndUnlockAchievements = async (userId) => {
       if (!earnedSlugs.has('completed-semester')) {
         const activeSubjects = subjects.filter(s => s.active && !s.isArchived);
         if (activeSubjects.length > 0) {
-          const activeSubIds = new Set(activeSubjects.map(s => s._id.toString()));
-          const activeChapters = chapters.filter(c => activeSubIds.has(c.subjectId.toString()));
+          const activeSubIds = new Set(activeSubjects.map(s => s.id));
+          const activeChapters = chapters.filter(c => activeSubIds.has(c.subjectId));
           
           const isSemesterCompleted = activeChapters.length > 0 && activeChapters.every(c => c.completed);
           if (isSemesterCompleted) {
@@ -134,7 +141,10 @@ const checkAndUnlockAchievements = async (userId) => {
 
     // Check 10: ai-planner-follower
     if (!earnedSlugs.has('ai-planner-follower') && sessions && sessions.length >= 1) {
-      const user = await User.findById(userId).select('hasUsedPlanner').lean();
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { hasUsedPlanner: true },
+      });
       if (user && user.hasUsedPlanner) {
         toUnlock.push('ai-planner-follower');
       }
@@ -143,11 +153,13 @@ const checkAndUnlockAchievements = async (userId) => {
     // 3. Persist newly earned achievements (set notified: false)
     if (toUnlock.length > 0) {
       const inserts = toUnlock.map((slug) =>
-        Achievement.updateOne(
-          { userId, slug },
-          { $setOnInsert: { userId, slug, notified: false } },
-          { upsert: true }
-        )
+        prisma.achievement.upsert({
+          where: {
+            userId_slug: { userId, slug },
+          },
+          update: {},
+          create: { userId, slug, notified: false },
+        })
       );
       await Promise.all(inserts);
       console.log(`[ACHIEVEMENTS] Unlocked for user ${userId}: ${toUnlock.join(', ')}`);
@@ -158,4 +170,3 @@ const checkAndUnlockAchievements = async (userId) => {
 };
 
 module.exports = { checkAndUnlockAchievements };
-
