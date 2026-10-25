@@ -162,10 +162,10 @@ const checkAndUnlockAchievements = async (userId) => {
         })
       );
       await Promise.all(inserts);
-      console.log(`[ACHIEVEMENTS] Unlocked for user ${userId}: ${toUnlock.join(', ')}`);
+      console.log('[ACHIEVEMENTS] New achievements unlocked');
     }
   } catch (err) {
-    console.error('Achievement check error:', err.message);
+    console.error('Achievement check failed');
   }
 };
 

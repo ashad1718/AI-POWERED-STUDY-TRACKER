@@ -15,17 +15,14 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-console.log('[API] Active VITE_API_URL / Axios Base URL:', api.defaults.baseURL);
+console.log('[API] API client initialized');
 
 // ─── Request Interceptor: attach access token ─────────────────────────────────
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('accessToken');
     if (token) {
-      console.log(`[AUTH] Token found in localStorage for request: ${config.url}`);
       config.headers.Authorization = `Bearer ${token}`;
-    } else {
-      console.warn(`[AUTH] No token found in localStorage for request: ${config.url}`);
     }
     return config;
   },
@@ -56,7 +53,7 @@ export const refreshAccessToken = async () => {
       localStorage.setItem('accessToken', newToken);
       return newToken;
     } catch (refreshError) {
-      console.error('[AUTH] Token refresh failed. Invalid/expired session. Clearing credentials.', refreshError);
+      console.error('[AUTH] Token refresh failed. Invalid/expired session. Clearing credentials.');
       localStorage.removeItem('accessToken');
       localStorage.removeItem('user');
       window.dispatchEvent(new CustomEvent('auth-logout', { detail: { expired: true } }));

@@ -21,17 +21,20 @@ const geminiRoutes      = require('./routes/gemini.routes');   // ← NEW
 const subjectRoutes     = require('./routes/subject.routes');
 const chapterRoutes     = require('./routes/chapter.routes');
 const semesterRoutes    = require('./routes/semester.routes');
-const debugRoutes       = require('./routes/debug.routes');
 const examRoutes        = require('./routes/exam.routes');
 const plannerRoutes     = require('./routes/planner.routes');
+const { isLocalDebugEnvironment } = require('./config/debug');
 
 const app = express();
 
 app.use(helmet());
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:3000',
-];
+const allowedOrigins = [];
+if (process.env.NODE_ENV === 'development') {
+  allowedOrigins.push(
+    'http://localhost:5173',
+    'http://localhost:3000',
+  );
+}
 if (process.env.CLIENT_ORIGIN) {
   allowedOrigins.push(process.env.CLIENT_ORIGIN);
 }
@@ -42,9 +45,7 @@ app.use(
       // Allow requests with no origin (like mobile apps, curl, postman, etc.)
       if (!origin) return callback(null, true);
       
-      const isAllowed = allowedOrigins.includes(origin) || 
-                        origin.endsWith('.vercel.app') || 
-                        origin.includes('vercel.app');
+      const isAllowed = allowedOrigins.includes(origin);
                         
       if (isAllowed) {
         return callback(null, true);
@@ -100,7 +101,9 @@ app.use('/api/v1/subjects',                    subjectRoutes);
 app.use('/api/v1/chapters',                    chapterRoutes);
 app.use('/api/v1/semester-progress',          semesterRoutes);
 app.use('/api/ai',              geminiLimiter, geminiRoutes);  // ← NEW — note: /api/ai not /api/v1/ai
-app.use('/api/debug',                          debugRoutes);
+if (isLocalDebugEnvironment()) {
+  app.use('/api/debug', require('./routes/debug.routes'));
+}
 app.use('/api/v1/exams',                       examRoutes);
 app.use('/api/exams',                          examRoutes);
 app.use('/api/v1/planner',                     plannerRoutes);
@@ -113,5 +116,3 @@ app.all('*', (req, res, next) => {
 app.use(errorHandler);
 
 module.exports = app;
-
-

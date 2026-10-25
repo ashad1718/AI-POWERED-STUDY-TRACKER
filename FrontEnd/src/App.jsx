@@ -56,7 +56,7 @@ const AppContent = () => {
 
       const token = localStorage.getItem('accessToken');
       if (token) {
-        console.log('[AUTH] Token found on startup. Verifying session...');
+        console.log('[AUTH] Verifying existing session...');
         try {
           const res = await authAPI.getMe();
           const verifiedUser = res.data.data;
@@ -79,7 +79,7 @@ const AppContent = () => {
               throw new Error('Refresh token did not return a new access token');
             }
           } catch (refreshErr) {
-            console.error('[AUTH] Startup token verification and refresh both failed. Clearing session.', refreshErr);
+            console.error('[AUTH] Startup session verification and refresh both failed. Clearing session.');
             localStorage.removeItem('accessToken');
             localStorage.removeItem('user');
             setUser(null);
@@ -87,7 +87,7 @@ const AppContent = () => {
           }
         }
       } else {
-        console.log('[AUTH] No access token in localStorage. Attempting automatic refresh...');
+        console.log('[AUTH] Attempting session restoration...');
         try {
           const newToken = await refreshAccessToken();
           if (newToken) {
@@ -184,7 +184,7 @@ const AppContent = () => {
           });
         }
       } catch (err) {
-        console.warn('[ACHIEVEMENTS] Failed to poll achievements', err);
+        console.warn('[ACHIEVEMENTS] Failed to poll achievements');
       }
     };
 

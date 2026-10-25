@@ -54,7 +54,7 @@ const ExamPredictorSection = ({ data, onRefresh }) => {
       onRefresh(); // refresh parent dashboard data
       handleCancel();
     } catch (err) {
-      console.error('Failed to save exam date', err);
+      console.error('Failed to save exam date');
       alert('Failed to save exam date. Please try again.');
     } finally {
       setActionLoading(false);
@@ -68,7 +68,7 @@ const ExamPredictorSection = ({ data, onRefresh }) => {
       await examAPI.remove(examId);
       onRefresh();
     } catch (err) {
-      console.error('Failed to delete exam date', err);
+      console.error('Failed to delete exam date');
       alert('Failed to delete exam date.');
     } finally {
       setActionLoading(false);

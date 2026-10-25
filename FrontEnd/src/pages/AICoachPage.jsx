@@ -136,7 +136,7 @@ const AICoachPage = ({ user }) => {
       };
       setMessages(prev => [...prev, aiMsg]);
     } catch (err) {
-      console.error(err);
+      console.error('[AI COACH] Request failed');
       setChatError(
         err.response?.data?.error?.message || 
         err.message || 

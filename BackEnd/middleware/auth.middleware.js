@@ -31,9 +31,9 @@ const protect = asyncHandler(async (req, res, next) => {
     decoded = verifyAccessToken(token);
   } catch (err) {
     if (err.name === 'TokenExpiredError') {
-      console.warn(`[AUTH] Access token expired. Details: ${err.message}`);
+      console.warn('[AUTH] Access token expired');
     } else {
-      console.warn(`[AUTH] Access token verification failed. Details: ${err.message}`);
+      console.warn('[AUTH] Access token verification failed');
     }
     throw err;
   }

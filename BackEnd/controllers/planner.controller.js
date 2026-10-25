@@ -28,7 +28,7 @@ exports.getDailyPlan = asyncHandler(async (req, res) => {
   const userName = req.user.name;
 
   // Optional query to bypass/ignore rate limit on initial load (not on force re-generation)
-  const isInitialLoad = req.query.initial === 'true';
+  const isInitialLoad = req.query.initial === true;
   if (!isInitialLoad) {
     checkRateLimit(userId);
   }
@@ -104,7 +104,7 @@ exports.getWeeklyPlan = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const userName = req.user.name;
 
-  const isInitialLoad = req.query.initial === 'true';
+  const isInitialLoad = req.query.initial === true;
   if (!isInitialLoad) {
     checkRateLimit(userId);
   }

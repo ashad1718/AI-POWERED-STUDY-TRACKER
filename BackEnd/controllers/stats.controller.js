@@ -75,7 +75,7 @@ exports.getWeekly = asyncHandler(async (req, res) => {
     name:  DAY_NAMES[i],
     hours: Math.round(((dayTotals[dateStr] || 0) / 60) * 10) / 10, // minutes → hours, 1dp
   }));
-  console.log('[ANALYTICS] Weekly Data Generated:', JSON.stringify(weeklyData));
+  console.log('[ANALYTICS] Weekly data generated');
 
   res.status(200).json({ success: true, data: { weeklyData } });
 });
@@ -103,7 +103,7 @@ exports.getSubjects = asyncHandler(async (req, res) => {
     name,
     value: Math.round((totalMins / 60) * 10) / 10, // hours, 1dp
   }));
-  console.log('[ANALYTICS] Subject Breakdown Generated:', JSON.stringify(pieData));
+  console.log('[ANALYTICS] Subject breakdown generated');
 
   res.status(200).json({ success: true, data: { pieData } });
 });

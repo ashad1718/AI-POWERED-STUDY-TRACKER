@@ -79,7 +79,7 @@ const sendProdError = (err, res) => {
     });
   } else {
     // Unknown / programming error — don't leak details
-    console.error('💥 UNHANDLED ERROR:', err);
+    console.error(`💥 UNHANDLED ERROR: ${err.name}`);
     res.status(500).json({
       success: false,
       error: {

@@ -10,10 +10,10 @@ exports.getSubjects = asyncHandler(async (req, res) => {
   
   // Optional query params to filter by active / archived status
   if (req.query.active !== undefined) {
-    filter.active = req.query.active === 'true';
+    filter.active = req.query.active;
   }
   if (req.query.isArchived !== undefined) {
-    filter.isArchived = req.query.isArchived === 'true';
+    filter.isArchived = req.query.isArchived;
   }
 
   const subjects = await prisma.subject.findMany({

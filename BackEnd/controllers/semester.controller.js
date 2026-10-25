@@ -189,7 +189,7 @@ exports.getSemesterProgress = asyncHandler(async (req, res) => {
       predictedCompletionDate,
     },
   });
-  console.log('[ANALYTICS] Performance Data Generated:', JSON.stringify(subjectBreakdown));
+  console.log('[ANALYTICS] Performance data generated');
 });
 
 // ─── POST /api/v1/semester-progress/setup ─────────────────────────────────────
@@ -232,7 +232,7 @@ exports.setupNewSemester = asyncHandler(async (req, res) => {
       startDate: new Date(startDate),
       endDate: new Date(endDate),
       expectedHoursPerWeek: Number(expectedHoursPerWeek),
-      goalGPA: goalGPA ? Number(goalGPA) : null,
+      goalGPA: goalGPA === undefined || goalGPA === null ? null : Number(goalGPA),
       active: true,
     },
   });

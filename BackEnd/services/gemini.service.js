@@ -58,7 +58,7 @@ const initGemini = () => {
     console.log(`[GEMINI] Configured model: ${configuredModel}`);
     return true;
   } catch (err) {
-    console.warn(`⚠️  Gemini AI initialisation failed: ${err.message}`);
+    console.warn('⚠️  Gemini AI initialisation failed');
     return false;
   }
 };
@@ -225,9 +225,7 @@ const generateGeminiText = async ({ contents, config = {} }) => {
         const duration = Date.now() - startTime;
         
         // Task 7 logging: Request failure
-        console.warn(`[GEMINI Request Failure] Failed. Model: ${model}, Duration: ${duration}ms, Error: ${err.message}`);
-        // Task 7 logging: Full Gemini error
-        console.error('[GEMINI Full Error Detail]', err);
+        console.warn(`[GEMINI Request Failure] Failed. Model: ${model}, Duration: ${duration}ms`);
 
         lastError = err;
 
@@ -586,7 +584,7 @@ const analyseWithGemini = async (sessions, userName, activeSubjects = [], chapte
       .trim();
     insights = JSON.parse(cleaned);
   } catch (err) {
-    console.error('[GEMINI JSON ERROR]', { rawText, error: err.message });
+    console.error('[GEMINI JSON ERROR] Response parsing failed');
     throw new Error('Gemini returned malformed JSON. Please try again.');
   }
 
@@ -775,7 +773,7 @@ Requirements:
       throw new Error('JSON schema validation failed.');
     } catch (err) {
       attempts++;
-      console.warn(`[AI PLANNER] Daily plan generation failed (attempt ${attempts}/${maxAttempts}). Error: ${err.message}`);
+      console.warn(`[AI PLANNER] Daily plan generation failed (attempt ${attempts}/${maxAttempts})`);
       if (attempts >= maxAttempts) {
         throw new Error('AI Planner could not generate a valid study plan. Retrying...');
       }
@@ -874,7 +872,7 @@ Requirements:
       throw new Error('JSON schema validation failed.');
     } catch (err) {
       attempts++;
-      console.warn(`[AI PLANNER] Weekly plan generation failed (attempt ${attempts}/${maxAttempts}). Error: ${err.message}`);
+      console.warn(`[AI PLANNER] Weekly plan generation failed (attempt ${attempts}/${maxAttempts})`);
       if (attempts >= maxAttempts) {
         throw new Error('AI Planner could not generate a valid study plan. Retrying...');
       }
@@ -939,7 +937,7 @@ Requirements:
     const parsed = JSON.parse(cleaned);
     return parsed.insights || [];
   } catch (err) {
-    console.error('[GEMINI EXAM INSIGHTS JSON ERROR]', { rawText, error: err.message });
+    console.error('[GEMINI EXAM INSIGHTS JSON ERROR] Response parsing failed');
     return [
       "Keep study sessions consistent to meet your exam dates.",
       "Check any subjects marked as High Risk and adjust study targets.",

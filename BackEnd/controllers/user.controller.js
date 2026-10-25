@@ -3,6 +3,7 @@
 const { prisma, toPublicJSON, comparePassword, hashPassword } = require('../config/prisma');
 const AppError     = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
+const { assertStrongPassword } = require('../utils/passwordValidation');
 
 // ─── GET /api/v1/users/me ─────────────────────────────────────────────────────
 exports.getMe = asyncHandler(async (req, res) => {
@@ -39,6 +40,8 @@ exports.updatePassword = asyncHandler(async (req, res) => {
   if (!currentPassword || !newPassword) {
     throw new AppError('Please provide currentPassword and newPassword.', 400);
   }
+
+  assertStrongPassword(newPassword, 'New password');
 
   // Fetch user with password
   const user = await prisma.user.findUnique({

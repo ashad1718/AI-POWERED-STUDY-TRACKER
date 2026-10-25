@@ -44,7 +44,7 @@ const ProfilePage = ({ user = {} }) => {
       setSubjects(fetchedSubjects.sort((a, b) => (a.order || 0) - (b.order || 0)));
     } catch (err) {
       setError('Failed to load profile data.');
-      console.error(err);
+      console.error('Failed to load profile data');
     } finally {
       setLoading(false);
     }
@@ -85,7 +85,7 @@ const ProfilePage = ({ user = {} }) => {
       const subRes = await subjectAPI.getAll();
       setSubjects((subRes.data.data.subjects || []).sort((a, b) => (a.order || 0) - (b.order || 0)));
     } catch (err) {
-      console.error('Failed to create subject', err);
+      console.error('Failed to create subject');
       alert('Error creating subject.');
     } finally {
       setSubActionLoading(false);
@@ -102,7 +102,7 @@ const ProfilePage = ({ user = {} }) => {
         prev.map(s => s._id === sub._id ? { ...s, active: !s.active } : s)
       );
     } catch (err) {
-      console.error('Failed to update active status', err);
+      console.error('Failed to update active status');
     } finally {
       setSubActionLoading(false);
     }
@@ -131,7 +131,7 @@ const ProfilePage = ({ user = {} }) => {
       );
       setEditingSubId(null);
     } catch (err) {
-      console.error('Failed to update subject', err);
+      console.error('Failed to update subject');
     } finally {
       setSubActionLoading(false);
     }
@@ -146,7 +146,7 @@ const ProfilePage = ({ user = {} }) => {
       await subjectAPI.remove(id);
       setSubjects(prev => prev.filter(s => s._id !== id));
     } catch (err) {
-      console.error('Failed to delete subject', err);
+      console.error('Failed to delete subject');
     } finally {
       setSubActionLoading(false);
     }
@@ -176,7 +176,7 @@ const ProfilePage = ({ user = {} }) => {
       // Update local state
       setSubjects(updatedList.map((sub, i) => ({ ...sub, order: i })));
     } catch (err) {
-      console.error('Failed to reorder subjects', err);
+      console.error('Failed to reorder subjects');
     } finally {
       setSubActionLoading(false);
     }

@@ -3,10 +3,11 @@
 const express = require('express');
 const router  = express.Router();
 const { prisma, toPublicJSON, comparePassword } = require('../config/prisma');
+const { isLocalDebugEnvironment } = require('../config/debug');
 
-// Middleware: restrict debug routes strictly to development environment
+// Defense in depth: fail closed even if this router is mounted accidentally.
 router.use((req, res, next) => {
-  if (process.env.NODE_ENV !== 'development') {
+  if (!isLocalDebugEnvironment()) {
     return res.status(403).json({
       success: false,
       error: {

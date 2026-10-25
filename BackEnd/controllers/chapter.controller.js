@@ -27,6 +27,7 @@ exports.getChapters = asyncHandler(async (req, res) => {
   const sessionStats = await prisma.session.groupBy({
     by: ['chapterId'],
     where: {
+      userId: req.user.id,
       chapterId: { in: chapterIds },
     },
     _count: {

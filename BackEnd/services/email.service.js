@@ -39,10 +39,10 @@ StudyAI Team`,
 
   try {
     const info = await transporter.sendMail(mailOptions);
-    console.log(`[EMAIL SERVICE] OTP successfully sent to: ${email}. MessageId: ${info.messageId}`);
+    console.log('[EMAIL SERVICE] OTP successfully sent');
     return info;
   } catch (err) {
-    console.error(`[EMAIL SERVICE ERROR] Failed to send OTP email to ${email}: ${err.message}`);
+    console.error('[EMAIL SERVICE ERROR] Failed to send OTP email');
     throw err;
   }
 };

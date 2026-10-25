@@ -69,7 +69,7 @@ const ChapterManagerPage = () => {
           setSemesterExists(res.data.data.semesterExists);
         }
       } catch (err) {
-        console.error('Failed to verify semester existence:', err);
+        console.error('Failed to verify semester existence');
       } finally {
         setSemesterLoading(false);
       }
@@ -205,7 +205,7 @@ const ChapterManagerPage = () => {
         chapterAPI.update(list[targetIndex]._id, { order: targetIndex })
       ]);
     } catch (err) {
-      console.error('Failed to save chapter reorder:', err);
+      console.error('Failed to save chapter reorder');
       fetchChapters(selectedSubId);
     }
   };

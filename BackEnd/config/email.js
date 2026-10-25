@@ -109,7 +109,7 @@ const sendOtpEmail = async (to, otp, userName = 'User') => {
   const { EMAIL_FROM } = getEmailConfig();
   const { text, html } = buildOtpEmail(otp, userName);
 
-  console.log(`[EMAIL] Sending OTP to ${to}`);
+  console.log('[EMAIL] Sending OTP');
 
   try {
     await verifyEmailTransporter();
@@ -121,12 +121,12 @@ const sendOtpEmail = async (to, otp, userName = 'User') => {
       html,
     });
 
-    console.log(`[EMAIL] OTP sent successfully to ${to}`);
+    console.log('[EMAIL] OTP sent successfully');
     if (info.messageId) {
       console.log(`[EMAIL] SMTP success messageId=${info.messageId}`);
     }
   } catch (err) {
-    console.error(`[EMAIL ERROR] ${err.message}`);
+    console.error('[EMAIL ERROR] Failed to send OTP email');
     throw err;
   }
 };
@@ -199,7 +199,7 @@ const sendPasswordResetEmail = async (to, otp, userName = 'User') => {
     </html>
   `;
 
-  console.log(`[EMAIL] Sending OTP to ${to}`);
+  console.log('[EMAIL] Sending OTP');
 
   try {
     await verifyEmailTransporter();
@@ -211,12 +211,12 @@ const sendPasswordResetEmail = async (to, otp, userName = 'User') => {
       html,
     });
 
-    console.log(`[EMAIL] OTP sent successfully to ${to}`);
+    console.log('[EMAIL] OTP sent successfully');
     if (info.messageId) {
       console.log(`[EMAIL] SMTP success messageId=${info.messageId}`);
     }
   } catch (err) {
-    console.error(`[EMAIL ERROR] ${err.message}`);
+    console.error('[EMAIL ERROR] Failed to send password reset email');
     throw err;
   }
 };

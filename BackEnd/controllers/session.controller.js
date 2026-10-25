@@ -20,23 +20,30 @@ exports.createSession = asyncHandler(async (req, res) => {
 
   let resolvedSubject = subject;
   let resolvedChapter = '';
+  let selectedSubject = null;
+  let selectedChapter = null;
 
   if (subjectId) {
-    const sub = await prisma.subject.findFirst({
-      where: { id: subjectId, userId: req.user.id },
+    selectedSubject = await prisma.subject.findFirst({
+      where: { id: subjectId, userId: req.user.id, isDeleted: false },
     });
-    if (sub) {
-      resolvedSubject = sub.name;
+    if (!selectedSubject) {
+      throw new AppError('Subject not found or does not belong to you.', 404, 'NOT_FOUND');
     }
+    resolvedSubject = selectedSubject.name;
   }
 
   if (chapterId) {
-    const chap = await prisma.chapter.findFirst({
-      where: { id: chapterId, userId: req.user.id },
+    selectedChapter = await prisma.chapter.findFirst({
+      where: { id: chapterId, userId: req.user.id, isDeleted: false },
     });
-    if (chap) {
-      resolvedChapter = chap.name;
+    if (!selectedChapter) {
+      throw new AppError('Chapter not found or does not belong to you.', 404, 'NOT_FOUND');
     }
+    if (selectedSubject && selectedChapter.subjectId !== selectedSubject.id) {
+      throw new AppError('Chapter does not belong to the selected subject.', 400, 'INVALID_RELATIONSHIP');
+    }
+    resolvedChapter = selectedChapter.name;
   }
 
   const session = await prisma.session.create({

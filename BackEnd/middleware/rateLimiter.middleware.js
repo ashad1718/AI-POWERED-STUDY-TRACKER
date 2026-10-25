@@ -25,7 +25,7 @@ const authLimiter = rateLimit({
     error: { message: 'Too many auth attempts. Please try again in 15 minutes.', code: 'AUTH_RATE_LIMITED' },
   },
   handler: (req, res, next, options) => {
-    console.warn(`[RATE-LIMIT EXCEEDED] IP: ${req.ip} | Route: ${req.originalUrl} | Limit: ${options.max}`);
+    console.warn(`[RATE-LIMIT EXCEEDED] Limit: ${options.max}`);
     res.status(options.statusCode).json(options.message);
   },
 });
@@ -45,7 +45,7 @@ const geminiLimiter = rateLimit({
 // Middleware to log rate limit status for successful auth requests
 const logAuthRateLimit = (req, res, next) => {
   if (req.rateLimit) {
-    console.log(`[RATE-LIMIT] IP: ${req.ip} | Route: ${req.originalUrl} | Auth Attempts: ${req.rateLimit.current}/${req.rateLimit.limit} | Remaining: ${req.rateLimit.remaining}`);
+    console.log(`[RATE-LIMIT] Auth Attempts: ${req.rateLimit.current}/${req.rateLimit.limit} | Remaining: ${req.rateLimit.remaining}`);
   }
   next();
 };

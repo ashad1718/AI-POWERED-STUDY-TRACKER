@@ -43,7 +43,7 @@ const AchievementsPage = () => {
           setError('Failed to load achievements.');
         }
       } catch (err) {
-        console.error('Error fetching achievements:', err);
+        console.error('Error fetching achievements');
         setError('Error connecting to achievements server.');
       } finally {
         setLoading(false);

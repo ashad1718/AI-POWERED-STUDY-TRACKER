@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -7,6 +8,7 @@ const ACCESS_SECRET  = process.env.JWT_ACCESS_SECRET;
 const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
 const ACCESS_EXPIRES  = process.env.JWT_ACCESS_EXPIRES_IN  || '15m';
 const REFRESH_EXPIRES = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
+const REFRESH_TOKEN_HASH_PREFIX = 'hmac-sha256:';
 
 // ─── Sign Tokens ─────────────────────────────────────────────────────────────
 
@@ -26,13 +28,13 @@ const signAccessToken = (user) => {
 
 /**
  * Creates a long-lived refresh token.
- * Payload stored: { id } only — minimal data in refresh token.
+ * Payload stored: { id, jti } — minimal data plus a unique rotation identifier.
  * @param {Object} user  - User record
  * @returns {string}     - signed JWT string
  */
 const signRefreshToken = (user) => {
   return jwt.sign(
-    { id: user.id },
+    { id: user.id, jti: crypto.randomUUID() },
     REFRESH_SECRET,
     { expiresIn: REFRESH_EXPIRES }
   );
@@ -56,6 +58,52 @@ const verifyAccessToken = (token) => {
  */
 const verifyRefreshToken = (token) => {
   return jwt.verify(token, REFRESH_SECRET);
+};
+
+/**
+ * Hash a refresh token for storage. The raw bearer token is never persisted.
+ * @param {string} token
+ * @returns {string}
+ */
+const hashRefreshToken = (token) => {
+  if (!REFRESH_SECRET) {
+    throw new Error('JWT_REFRESH_SECRET is not configured.');
+  }
+
+  return `${REFRESH_TOKEN_HASH_PREFIX}${crypto
+    .createHmac('sha256', REFRESH_SECRET)
+    .update(token, 'utf8')
+    .digest('hex')}`;
+};
+
+const safeCompare = (left, right) => {
+  if (typeof left !== 'string' || typeof right !== 'string') return false;
+
+  const leftBuffer = Buffer.from(left, 'utf8');
+  const rightBuffer = Buffer.from(right, 'utf8');
+  if (leftBuffer.length !== rightBuffer.length) return false;
+
+  return crypto.timingSafeEqual(leftBuffer, rightBuffer);
+};
+
+/**
+ * Compare a presented token with a stored value.
+ * Legacy plaintext values are accepted only to migrate active sessions; every
+ * successful login or refresh writes the HMAC representation above.
+ * @param {string} token
+ * @param {string|null} storedValue
+ * @returns {{ matches: boolean, legacy: boolean }}
+ */
+const compareRefreshToken = (token, storedValue) => {
+  if (typeof token !== 'string' || typeof storedValue !== 'string') {
+    return { matches: false, legacy: false };
+  }
+
+  if (storedValue.startsWith(REFRESH_TOKEN_HASH_PREFIX)) {
+    return { matches: safeCompare(hashRefreshToken(token), storedValue), legacy: false };
+  }
+
+  return { matches: safeCompare(token, storedValue), legacy: true };
 };
 
 // ─── Cookie Options ───────────────────────────────────────────────────────────
@@ -87,6 +135,8 @@ module.exports = {
   signRefreshToken,
   verifyAccessToken,
   verifyRefreshToken,
+  hashRefreshToken,
+  compareRefreshToken,
   refreshCookieOptions,
   clearCookieOptions,
 };

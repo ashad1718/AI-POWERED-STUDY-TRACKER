@@ -49,7 +49,7 @@ const StudySessionPage = () => {
         setSelectedSubjectId(activeSubjects[0]._id);
       }
     } catch (err) {
-      console.error('Failed to load active subjects:', err);
+      console.error('Failed to load active subjects');
     } finally {
       setLoadingSubjects(false);
     }
@@ -69,7 +69,7 @@ const StudySessionPage = () => {
       setChapters(chaptersList);
       setSelectedChapterId(''); // default to empty (general study)
     } catch (err) {
-      console.error('Failed to load chapters:', err);
+      console.error('Failed to load chapters');
     } finally {
       setLoadingChapters(false);
     }
@@ -83,7 +83,7 @@ const StudySessionPage = () => {
           setSemesterExists(res.data.data.semesterExists);
         }
       } catch (err) {
-        console.error('Failed to verify semester existence:', err);
+        console.error('Failed to verify semester existence');
       } finally {
         setSemesterLoading(false);
       }

@@ -52,7 +52,7 @@ const SubjectManagerPage = () => {
           setSemesterExists(res.data.data.semesterExists);
         }
       } catch (err) {
-        console.error('Failed to verify semester existence:', err);
+        console.error('Failed to verify semester existence');
       } finally {
         setSemesterLoading(false);
       }
@@ -170,7 +170,7 @@ const SubjectManagerPage = () => {
         subjectAPI.update(list[targetIndex]._id, { order: targetIndex })
       ]);
     } catch (err) {
-      console.error('Failed to save order change:', err);
+      console.error('Failed to save order change');
       // Revert if API fails
       fetchSubjects();
     }

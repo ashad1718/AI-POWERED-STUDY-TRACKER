@@ -20,7 +20,7 @@ const StudyHeatmap = () => {
           setError('Failed to fetch consistency heatmap.');
         }
       } catch (err) {
-        console.error('[HEATMAP FETCH ERROR]', err);
+        console.error('[HEATMAP FETCH ERROR]');
         setError('Could not establish connection to stats heatmap.');
       } finally {
         setLoading(false);

@@ -310,7 +310,7 @@ exports.getPredictions = asyncHandler(async (req, res) => {
   try {
     insights = await generateExamInsightsWithGemini(predictions, userName);
   } catch (err) {
-    console.error('[EXAM PREDICTOR AI INSIGHTS FAIL]', err);
+    console.error('[EXAM PREDICTOR AI INSIGHTS FAIL]');
     // fallback
     insights = [
       "Keep study sessions consistent to meet your exam dates.",

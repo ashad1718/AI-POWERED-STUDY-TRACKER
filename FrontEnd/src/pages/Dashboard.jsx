@@ -72,19 +72,13 @@ const Dashboard = ({ user }) => {
       setSessions(sessionsRes.data.data.sessions);
       setSemester(semesterRes.data.data);
       setPredictionsData(predictionsRes.data.data);
-      console.log('[FRONTEND] Analytics Response Received', {
-        overview: overviewRes.data,
-        weekly: weeklyRes.data,
-        subjects: subjectsRes.data,
-        semester: semesterRes.data
-      });
+      console.log('[FRONTEND] Analytics response received');
       console.log('[DASHBOARD] Dashboard request completed');
     } catch (err) {
-      const requestUrl = err.config?.url || 'unknown URL';
       const statusCode = err.response?.status || 'unknown status';
       const errMsg = err.response?.data?.error?.message || err.message || 'Unknown error occurred';
 
-      console.error(`[DASHBOARD] Dashboard request failed. URL: ${requestUrl}, Status: ${statusCode}, Error: ${errMsg}`);
+      console.error(`[DASHBOARD] Dashboard request failed. Status: ${statusCode}`);
       setError(`Failed to load dashboard: ${errMsg}`);
     } finally {
       if (!isSilent) {

@@ -1,42 +1,52 @@
 'use strict';
 
 const { body } = require('express-validator');
+const { assertStrongPassword } = require('../utils/passwordValidation');
 
-const emailValidator = body('email')
+const stringBody = (field, label) => body(field)
+  .isString().withMessage(`${label} must be a string.`)
+  .bail();
+
+const emailValidator = stringBody('email', 'Email')
   .trim()
   .notEmpty().withMessage('Email is required.')
-  .isEmail().withMessage('Please enter a valid email address.')
-  .normalizeEmail();
+  .isEmail().withMessage('Please enter a valid email address.');
 
-const otpValidator = body('otp')
+const otpValidator = stringBody('otp', 'Verification code')
   .trim()
   .notEmpty().withMessage('Verification code is required.')
   .isLength({ min: 6, max: 6 }).withMessage('Verification code must be 6 digits.')
-  .isNumeric().withMessage('Verification code must contain only numbers.');
+  .isNumeric().withMessage('Verification code must contain only numbers.')
+  .matches(/^\d{6}$/).withMessage('Verification code must contain only ASCII digits.');
 
 const purposeValidator = body('purpose')
-  .optional()
+  .optional({ values: 'undefined' })
+  .isString().withMessage('OTP purpose must be a string.')
   .isIn(['email_verification', 'password_reset'])
   .withMessage('Invalid OTP purpose.');
 
+const strongPasswordValidator = (field, label) => stringBody(field, label)
+  .custom((value) => {
+    assertStrongPassword(value, label);
+    return true;
+  });
+
+const currentPasswordValidator = stringBody('currentPassword', 'Current password')
+  .notEmpty().withMessage('Current password is required.');
+
 const registerValidators = [
-  body('name')
+  stringBody('name', 'Name')
     .trim()
     .notEmpty().withMessage('Name is required.')
     .isLength({ max: 60 }).withMessage('Name cannot exceed 60 characters.'),
   emailValidator,
-  body('password')
-    .notEmpty().withMessage('Password is required.')
-    .isLength({ min: 8, max: 128 }).withMessage('Password must be between 8 and 128 characters.')
-    .matches(/[A-Z]/).withMessage('Password must include an uppercase letter.')
-    .matches(/[a-z]/).withMessage('Password must include a lowercase letter.')
-    .matches(/[0-9]/).withMessage('Password must include a number.')
-    .matches(/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/).withMessage('Password must include a special character.'),
+  strongPasswordValidator('password', 'Password'),
 ];
 
 const loginValidators = [
   emailValidator,
-  body('password').notEmpty().withMessage('Password is required.'),
+  stringBody('password', 'Password')
+    .notEmpty().withMessage('Password is required.'),
 ];
 
 const forgotPasswordValidators = [emailValidator];
@@ -50,13 +60,12 @@ const resendOtpValidators = [emailValidator, purposeValidator];
 const resetPasswordValidators = [
   emailValidator,
   otpValidator,
-  body('newPassword')
-    .notEmpty().withMessage('New password is required.')
-    .isLength({ min: 8, max: 128 }).withMessage('Password must be between 8 and 128 characters.')
-    .matches(/[A-Z]/).withMessage('Password must include an uppercase letter.')
-    .matches(/[a-z]/).withMessage('Password must include a lowercase letter.')
-    .matches(/[0-9]/).withMessage('Password must include a number.')
-    .matches(/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/).withMessage('Password must include a special character.'),
+  strongPasswordValidator('newPassword', 'New password'),
+];
+
+const updatePasswordValidators = [
+  currentPasswordValidator,
+  strongPasswordValidator('newPassword', 'New password'),
 ];
 
 module.exports = {
@@ -67,4 +76,5 @@ module.exports = {
   verifyOtpValidators,
   resendOtpValidators,
   resetPasswordValidators,
+  updatePasswordValidators,
 };

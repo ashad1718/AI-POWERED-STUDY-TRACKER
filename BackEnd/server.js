@@ -9,7 +9,7 @@ const { initGemini }        = require('./services/gemini.service');
 
 process.on('uncaughtException', (err) => {
   console.error('💥 UNCAUGHT EXCEPTION — shutting down...');
-  console.error(`   ${err.name}: ${err.message}`);
+  console.error(`   Error type: ${err.name}`);
   process.exit(1);
 });
 
@@ -21,7 +21,7 @@ const startServer = async () => {
     await prisma.$connect();
     console.log('✅ Connected to Neon PostgreSQL database.');
   } catch (err) {
-    console.error('💥 Failed to connect to database:', err.message);
+    console.error('💥 Failed to connect to database.');
     process.exit(1);
   }
 
@@ -36,7 +36,7 @@ const startServer = async () => {
 
   process.on('unhandledRejection', (err) => {
     console.error('💥 UNHANDLED REJECTION — shutting down...');
-    console.error(`   ${err.name}: ${err.message}`);
+    console.error(`   Error type: ${err.name}`);
     server.close(() => process.exit(1));
   });
 

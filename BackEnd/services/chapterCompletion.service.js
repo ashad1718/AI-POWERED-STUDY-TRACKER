@@ -99,7 +99,7 @@ const checkAndUpdateChapterAutoCompletion = async (userId, subjectId, chapterId)
   });
 
   if (updatedChapter.completed && !wasCompleted) {
-    console.log(`[CHAPTER COMPLETION SERVICE] Auto-completed chapter: ${updatedChapter.name}`);
+    console.log('[CHAPTER COMPLETION SERVICE] Chapter auto-completed');
     checkAndUnlockAchievements(userId);
   }
 };

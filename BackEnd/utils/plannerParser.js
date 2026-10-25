@@ -176,7 +176,7 @@ const attemptFallbackExtraction = (text) => {
       }
     }
   } catch (err) {
-    console.error('[AI PLANNER FALLBACK ERROR] safe extraction failed completely:', err.message);
+    console.error('[AI PLANNER FALLBACK ERROR] Safe extraction failed completely');
   }
 
   return fallback;
@@ -186,9 +186,6 @@ const attemptFallbackExtraction = (text) => {
  * Parse, clean, validate, and normalize study planner responses.
  */
 const parseAndNormalizePlannerResponse = (rawResponse, planType) => {
-  // Task 2: Log raw response
-  console.log(`[AI RESPONSE] ${rawResponse}`);
-
   const cleanedText = cleanupRawText(rawResponse);
   let parsed = null;
   let isFallback = false;
@@ -196,7 +193,7 @@ const parseAndNormalizePlannerResponse = (rawResponse, planType) => {
   try {
     parsed = JSON.parse(cleanedText);
   } catch (err) {
-    console.warn('[AI PLANNER] JSON.parse failed. Executing fallback regex extraction...', err.message);
+    console.warn('[AI PLANNER] JSON.parse failed. Executing fallback regex extraction');
     parsed = attemptFallbackExtraction(rawResponse);
     isFallback = true;
   }
