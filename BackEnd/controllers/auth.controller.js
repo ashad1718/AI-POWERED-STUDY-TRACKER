@@ -58,6 +58,7 @@ exports.register = asyncHandler(async (req, res) => {
     existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
   } catch (dbErr) {
     console.error('[REGISTER] Database failure during email lookup');
+    if (dbErr?.name?.startsWith('PrismaClient')) throw dbErr;
     throw new AppError('Database failure. Please try again.', 500, 'DATABASE_FAILURE');
   }
 
@@ -78,6 +79,7 @@ exports.register = asyncHandler(async (req, res) => {
     });
   } catch (dbErr) {
     console.error('[REGISTER] Database failure during user creation');
+    if (dbErr?.name?.startsWith('PrismaClient')) throw dbErr;
     throw new AppError('Database failure saving user. Please try again.', 500, 'DATABASE_FAILURE');
   }
 
@@ -103,7 +105,8 @@ exports.login = asyncHandler(async (req, res) => {
     user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
   } catch (dbErr) {
     console.error('[LOGIN] Database failure during user search');
-    throw new AppError(`Database lookup failed: ${dbErr.message}`, 500, 'DATABASE_FAILURE');
+    if (dbErr?.name?.startsWith('PrismaClient')) throw dbErr;
+    throw new AppError('Database failure. Please try again.', 500, 'DATABASE_FAILURE');
   }
 
   console.log('[LOGIN] User lookup completed');
@@ -118,7 +121,7 @@ exports.login = asyncHandler(async (req, res) => {
     isMatch = await comparePassword(password, user.password);
   } catch (err) {
     console.error('[LOGIN] Error comparing credentials');
-    throw new AppError(`Error verifying credentials: ${err.message}`, 500, 'CRYPTO_ERROR');
+    throw new AppError('Unable to verify credentials. Please try again.', 500, 'CRYPTO_ERROR');
   }
 
   if (!isMatch) {
@@ -138,7 +141,8 @@ exports.login = asyncHandler(async (req, res) => {
     });
   } catch (saveErr) {
     console.error('[LOGIN] Failed to save refresh token');
-    throw new AppError(`JWT failure (failed to save refresh token): ${saveErr.message}`, 500, 'JWT_FAILURE');
+    if (saveErr?.name?.startsWith('PrismaClient')) throw saveErr;
+    throw new AppError('Unable to complete login. Please try again.', 500, 'JWT_FAILURE');
   }
 
   // Set refresh token as httpOnly cookie

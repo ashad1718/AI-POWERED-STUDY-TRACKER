@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
   "installCommand": "npm install && npm install --prefix BackEnd --omit=dev && npm install --prefix FrontEnd",
-  "buildCommand": "npm run build --prefix FrontEnd -- --outDir ../dist",
+  "buildCommand": "npm run prisma:generate --prefix BackEnd && npm run build --prefix FrontEnd -- --outDir ../dist",
   "outputDirectory": "dist",
   "rewrites": [
     {

@@ -80,13 +80,13 @@ exports.analyzeStudy = asyncHandler(async (req, res) => {
     );
   } catch (err) {
     if (err.message.includes('not configured')) {
-      throw new AppError(err.message, 503, 'AI_NOT_CONFIGURED');
+      throw new AppError('AI Coach is not configured. Please try again later.', 503, 'AI_NOT_CONFIGURED');
     }
     if (err.message.includes('busy') || err.message.includes('quota') || err.message.includes('temporarily busy')) {
       throw new AppError('AI Coach is temporarily busy. Please try again in a moment.', 503, 'AI_BUSY');
     }
     if (err.message.includes('Invalid Gemini')) {
-      throw new AppError(err.message, 503, 'AI_INVALID_KEY');
+      throw new AppError('AI Coach is temporarily unavailable. Please try again later.', 503, 'AI_INVALID_KEY');
     }
     throw new AppError('AI Coach is temporarily busy. Please try again in a moment.', 503, 'AI_BUSY');
   }
@@ -180,13 +180,13 @@ exports.chatStudy = asyncHandler(async (req, res) => {
     );
   } catch (err) {
     if (err.message.includes('not configured')) {
-      throw new AppError(err.message, 503, 'AI_NOT_CONFIGURED');
+      throw new AppError('AI Coach is not configured. Please try again later.', 503, 'AI_NOT_CONFIGURED');
     }
     if (err.message.includes('busy') || err.message.includes('quota') || err.message.includes('temporarily busy')) {
       throw new AppError('AI Coach is temporarily busy. Please try again in a moment.', 503, 'AI_BUSY');
     }
     if (err.message.includes('Invalid Gemini')) {
-      throw new AppError(err.message, 503, 'AI_INVALID_KEY');
+      throw new AppError('AI Coach is temporarily unavailable. Please try again later.', 503, 'AI_INVALID_KEY');
     }
     throw new AppError('AI Coach is temporarily busy. Please try again in a moment.', 503, 'AI_BUSY');
   }

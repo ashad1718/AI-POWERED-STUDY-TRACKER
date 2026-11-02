@@ -71,12 +71,12 @@ const RegisterPage = ({ handleLogin }) => {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider block">Full Name</label>
+              <label htmlFor="name" className="text-xs font-semibold text-text-secondary uppercase tracking-wider block">Full Name</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
                   <User className="w-4 h-4" />
                 </div>
-                <input type="text" required value={name} onChange={(e) => setName(e.target.value)}
+                <input id="name" type="text" required value={name} onChange={(e) => setName(e.target.value)}
                   className="glass-input w-full pl-10 pr-4 py-3 text-sm rounded-xl focus:outline-none"
                   placeholder="John Doe"
                 />
@@ -84,12 +84,12 @@ const RegisterPage = ({ handleLogin }) => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider block">Email Address</label>
+              <label htmlFor="email" className="text-xs font-semibold text-text-secondary uppercase tracking-wider block">Email Address</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
                   <Mail className="w-4 h-4" />
                 </div>
-                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
+                <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
                   className="glass-input w-full pl-10 pr-4 py-3 text-sm rounded-xl focus:outline-none"
                   placeholder="name@example.com"
                 />

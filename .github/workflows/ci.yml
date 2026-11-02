@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            BackEnd/package-lock.json
+            FrontEnd/package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install backend dependencies
+        run: npm ci --prefix BackEnd
+
+      - name: Install frontend dependencies
+        run: npm ci --prefix FrontEnd
+
+      - name: Run backend and frontend tests
+        run: npm test
+
+      - name: Generate Prisma Client
+        run: npm run build:backend
+
+      - name: Build frontend
+        run: npm run build:frontend

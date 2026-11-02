@@ -42,11 +42,17 @@ module.exports = async (req, res) => {
     await initializationPromise;
     return app(req, res);
   } catch (error) {
-    console.error('[SERVERLESS ERROR] Initialisation failed');
+    const errorName = error?.name || error?.constructor?.name || 'Error';
+    console.error(`[SERVERLESS] Initialisation failed: ${errorName}`);
+    const message = 'Service temporarily unavailable. Please try again later.';
 
-    return res.status(500).json({
+    return res.status(503).json({
       success: false,
-      message: 'Serverless initialisation failed',
+      message,
+      error: {
+        message,
+        code: 'SERVICE_UNAVAILABLE',
+      },
     });
   }
 };

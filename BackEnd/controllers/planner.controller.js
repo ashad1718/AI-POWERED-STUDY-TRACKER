@@ -90,7 +90,7 @@ exports.getDailyPlan = asyncHandler(async (req, res) => {
       data: { hasUsedPlanner: true },
     });
   } catch (err) {
-    throw new AppError(err.message || 'AI Planner could not generate a valid study plan. Retrying...', 503, 'AI_ERROR');
+    throw new AppError('AI Planner is temporarily unavailable. Please try again.', 503, 'AI_ERROR');
   }
 
   res.status(200).json({
@@ -163,7 +163,7 @@ exports.getWeeklyPlan = asyncHandler(async (req, res) => {
       data: { hasUsedPlanner: true },
     });
   } catch (err) {
-    throw new AppError(err.message || 'AI Planner could not generate a valid study plan. Retrying...', 503, 'AI_ERROR');
+    throw new AppError('AI Planner is temporarily unavailable. Please try again.', 503, 'AI_ERROR');
   }
 
   res.status(200).json({

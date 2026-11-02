@@ -19,7 +19,9 @@
  * @returns {Function}   - Express middleware that catches rejections
  */
 const asyncHandler = (fn) => (req, res, next) => {
-  Promise.resolve(fn(req, res, next)).catch(next);
+  Promise.resolve()
+    .then(() => fn(req, res, next))
+    .catch(next);
 };
 
 module.exports = asyncHandler;

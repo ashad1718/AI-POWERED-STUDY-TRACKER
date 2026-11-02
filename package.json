@@ -10,7 +10,12 @@
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "start:backend": "npm run start --prefix BackEnd",
     "start": "concurrently \"npm run start:backend\" \"npm run dev:frontend\"",
-    "build": "npm install --prefix FrontEnd && npm install --prefix BackEnd --omit=dev && npm run build --prefix FrontEnd -- --outDir ../dist"
+    "test:backend": "npm test --prefix BackEnd",
+    "test:frontend": "npm test --prefix FrontEnd",
+    "test": "npm run test:backend && npm run test:frontend",
+    "build:backend": "npm run prisma:generate --prefix BackEnd",
+    "build:frontend": "npm run build --prefix FrontEnd -- --outDir ../dist",
+    "build": "npm install --prefix FrontEnd && npm install --prefix BackEnd --omit=dev && npm run prisma:generate --prefix BackEnd && npm run build --prefix FrontEnd -- --outDir ../dist"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

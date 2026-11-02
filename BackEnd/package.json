@@ -1,13 +1,16 @@
 {
   "name": "studyai-backend",
   "version": "1.0.0",
-  "description": "REST API backend for StudyAI — Node.js + Express + MongoDB",
+  "description": "REST API backend for StudyAI — Node.js + Express + PostgreSQL",
   "main": "server.js",
   "type": "commonjs",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "node --test tests/*.test.js",
+    "prisma:generate": "prisma generate --config prisma.config.ts",
+    "postinstall": "npm run prisma:generate"
   },
   "dependencies": {
     "@google/genai": "^2.8.0",
