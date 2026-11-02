@@ -27,7 +27,7 @@ Before initiating the deployment in Vercel, ensure you have gathered the followi
 
 ### 2. Configure Project Settings
 In the **Configure Project** window:
-- **Framework Preset**: Select **Vite** or leave as **Other** (Vercel will auto-detect Vite inside the build outputs).
+- **Framework Preset**: Select **Vite**. The checked-in `vercel.json` also sets `framework: "vite"` so Vercel does not classify the root `api/index.js` Express function as the project framework.
 - **Root Directory**: Leave as the **root directory** of your repository (`./` or `/`). Do *not* select `FrontEnd` or `BackEnd` as the root, as our configuration wraps both from the project root.
 - **Build and Development Settings**:
   - The checked-in `vercel.json` installs the frontend and backend dependencies, generates the Prisma Client, and builds the frontend into `dist/`.
